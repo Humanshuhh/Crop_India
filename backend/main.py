@@ -11,6 +11,8 @@ from typing import Dict, Any
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+#database router
+from backend.database.router import router as db_router
 
 from backend.config import settings
 from backend.routers import (
@@ -94,6 +96,8 @@ app.include_router(advisory_router, prefix=settings.API_V1_PREFIX)
 app.include_router(diagnosis_router, prefix=settings.API_V1_PREFIX)
 app.include_router(agristack_router, prefix=settings.API_V1_PREFIX)
 app.include_router(federation_router, prefix=settings.API_V1_PREFIX)
+# added during database setup
+app.include_router(db_router)
 
 
 @app.get(

@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Ignore Database Secret Credentials
+backend/database/credentials/*
+*.json
+#during database connection
+# Ignore Python bytecode and cached compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local virtual environment directories
+venv/
+.venv/
+env/
