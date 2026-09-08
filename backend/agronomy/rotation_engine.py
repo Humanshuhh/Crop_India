@@ -1,86 +1,72 @@
-﻿from typing import List
-from backend.schemas.soil_schemas import SoilEvaluationReport
-from backend.schemas.climate_schemas import WeatherTelemetry
-from backend.schemas.advisory_schemas import (
-    CropRecommendation,
-    RegenerativeAdvisoryResponse
-)
-from backend.schemas.common import AgroClimaticZoneInfo
+﻿import json
+import logging
+import os
+from typing import Optional
+from google import genai
+from google.genai import types
+from backend.schemas.soil_schemas import RegenerativeActionPlan
 
-def generate_regenerative_advisory(
-    soil_report: SoilEvaluationReport,
-    climate: WeatherTelemetry,
-    zone: AgroClimaticZoneInfo,
-    season: str = "Kharif"
-) -> RegenerativeAdvisoryResponse:
-    recommendations: List[CropRecommendation] = []
-    bio_fertilizers: List[str] = []
+logger = logging.getLogger("kisan_sahayak.regenerative")
 
-    # 1. Monoculture Interruption & Climate Resilience Logic
-    if climate.drought_risk_index in ["MODERATE", "SEVERE"] or climate.rainfall_14d_sum_mm < 60:
-        recommendations.append(
-            CropRecommendation(
-                crop_name="Pearl Millet (Bajra) / Finger Millet (Ragi)",
-                crop_category="Millet",
-                rationale="Exceptional drought tolerance, minimal water requirement, and resilient to erratic monsoons.",
-                water_requirement="Low / Rainfed"
-            )
-        )
-    else:
-        recommendations.append(
-            CropRecommendation(
-                crop_name="Sorghum (Jowar) / Proso Millet",
-                crop_category="Millet",
-                rationale="C4 photosynthetic efficiency, deep root system extracting nutrients without chemical forcing.",
-                water_requirement="Medium"
-            )
-        )
-
-    # 2. Legume Biological Fixation (Addresses Low SOC & Nitrogen without heavy Urea)
-    if soil_report.organic_carbon_status.value == "LOW" or soil_report.nitrogen_status.value == "LOW":
-        recommendations.append(
-            CropRecommendation(
-                crop_name="Pigeon Pea (Arhar/Tur) / Green Gram (Moong)",
-                crop_category="Pulse",
-                rationale="Intercropped legume fixes atmospheric nitrogen via root nodules, restoring soil organic carbon.",
-                water_requirement="Low"
-            )
-        )
-        bio_fertilizers.append("Rhizobium culture seed treatment (200g/10kg seed) before sowing to maximize nodulation.")
-
-    # 3. Green Manuring & Organic Matter Rebuilding
-    if soil_report.soil_restoration_score < 60:
-        recommendations.append(
-            CropRecommendation(
-                crop_name="Sunn Hemp (Sanai) / Dhaincha",
-                crop_category="Green Manure",
-                rationale="Fast biomass producer; incorporated at 45 days to add 15-20 tonnes/ha of green organic matter.",
-                water_requirement="Rainfed"
-            )
-        )
-        bio_fertilizers.append("Jeevamrutha fermented microbial application (200L/acre with irrigation) to trigger native soil biology.")
-
-    # 4. Target Specific Deficiencies (e.g. Zinc, Phosphorus)
-    if soil_report.is_zinc_deficient:
-        bio_fertilizers.append("Zinc Solubilizing Bacteria (ZSB) bio-fertilizer foliar application or organic compost enrichment.")
-
-    if soil_report.phosphorus_status.value == "LOW":
-        bio_fertilizers.append("Phosphate Solubilizing Bacteria (PSB) with farmyard manure.")
-
-    # 5. Localized Plain-Language Voice Summary
-    summary = (
-        f"For your field in {zone.zone_name}, soil restoration score is {soil_report.soil_restoration_score}/100. "
-        f"Due to low organic carbon and weather forecasts, rotate out of continuous monoculture into "
-        f"{recommendations[0].crop_name} intercropped with {recommendations[1].crop_name if len(recommendations) > 1 else 'pulses'}. "
-        f"Apply microbial bio-fertilizers instead of chemical dumping."
+def resolve_api_key() -> Optional[str]:
+    return (
+        os.getenv("GEMINI_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("GOOGLE_GENAI_API_KEY")
     )
 
-    return RegenerativeAdvisoryResponse(
-        agro_climatic_zone=zone,
-        current_season=season,
-        soil_restoration_score=soil_report.soil_restoration_score,
-        recommended_rotations=recommendations,
-        bio_fertilizer_schedule=bio_fertilizers,
-        actionable_summary=summary,
-        audio_base64=None
-    )
+class RegenerativeAgronomyEngine:
+    def __init__(self):
+        self.api_key = resolve_api_key()
+        self.client = genai.Client(api_key=self.api_key) if self.api_key else None
+
+    def generate_plan(
+        self,
+        organic_carbon_pct: float,
+        ph: float,
+        texture: str,
+        current_crop: str,
+        target_language: str = "hi",
+        zone: str = "Eastern Plateau & Trans-Gangetic Corridor"
+    ) -> RegenerativeActionPlan:
+        if not self.client:
+            raise RuntimeError("Gemini API key is not configured.")
+
+        # Flag critical soil depletion
+        carbon_status = "Critically Deficient (< 0.50%)" if organic_carbon_pct < 0.50 else "Moderate"
+
+        prompt = (
+            "You are an expert regenerative agronomist and agro-ecologist advising Indian smallholder farmers.\n"
+            f"The farmer's native language code is '{target_language}'.\n\n"
+            "--- SOIL & AGRO-CLIMATIC TELEMETRY ---\n"
+            f"- Agro-Climatic Zone: {zone}\n"
+            f"- Soil Organic Carbon (SOC): {organic_carbon_pct}% ({carbon_status})\n"
+            f"- Soil pH: {ph}\n"
+            f"- Soil Texture: {texture}\n"
+            f"- Current / Previous Crop: {current_crop}\n"
+            "--------------------------------------\n\n"
+            "MANDATORY REGENERATIVE RULES:\n"
+            "1. ZERO SYNTHETIC CHEMICALS: Do NOT recommend chemical fertilizers (Urea, DAP, MOP) or synthetic pesticides.\n"
+            "2. BIOLOGICAL AMENDMENTS: Prescribe bio-fertilizers (Azotobacter, Rhizobium, PSB), vermicompost, "
+            "Jeevamrit, or green manuring (Dhaincha/Sunn hemp) specifically calibrated to restore depleted Soil Organic Carbon.\n"
+            "3. ROTATION & DIVERSIFICATION: Break monoculture cycles (like continuous rice-wheat) by introducing "
+            "climate-resilient millets (Bajra, Ragi, Jowar) and nitrogen-fixing legumes/pulses (Arhar, Gram, Moong).\n"
+            "4. CULTURAL SOIL HYGIENE: Recommend conservation tillage, mulching with crop residue, and moisture retention.\n"
+            "5. VOICE SCRIPT: Write the 'spoken_summary' entirely in the farmer's language '{target_language}' "
+            "in an encouraging, plain conversational tone suitable for low-literacy farmers."
+        )
+
+        response = self.client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                response_mime_type="application/json",
+                response_schema=RegenerativeActionPlan,
+                tools=None,
+            ),
+        )
+
+        return RegenerativeActionPlan(**json.loads(response.text.strip()))
+
+regenerative_engine = RegenerativeAgronomyEngine()
