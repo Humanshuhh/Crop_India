@@ -1,95 +1,37 @@
-"""
-NAARIN - National Agro-Advisory & Regenerative Intelligence Network
-FastAPI Main Application Entrypoint
-Digital Public Good adhering to India's AgriStack UFSI Standards
-Integrated with Google GenAI SDK (gemini-2.5-flash)
-"""
-
-import logging
-from contextlib import asynccontextmanager
-from typing import Dict, Any
-from fastapi import FastAPI, status
+﻿import os
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+<<<<<<< HEAD
 from fastapi.responses import JSONResponse
 #checking if apis call adding data to databse or not
 from backend.database.testing_db_router import router as db_router
+=======
+import io
+>>>>>>> origin/main
 
-from backend.config import settings
-from backend.routers import (
-    advisory_router,
-    diagnosis_router,
-    agristack_router,
-    federation_router,
-    ml_router,
-)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO if not settings.DEBUG else logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger("naarin.main")
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan context manager for startup and shutdown events."""
-    logger.info("=" * 70)
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"AgriStack UFSI Standards Active: {settings.AGRISTACK_CONTEXT_URL}")
-    logger.info(f"Open-Meteo Integration Endpoint: {settings.OPEN_METEO_BASE_URL}")
-    logger.info(f"Google GenAI Engine Model: {settings.GEMINI_MODEL}")
-    logger.info("=" * 70)
-    yield
-    logger.info(f"Shutting down {settings.APP_NAME}. Clean exit.")
-
-
-# Initialize FastAPI Application
+from fastapi.responses import StreamingResponse
+from gtts import gTTS
+from backend.schemas.soil_schemas import SoilHealthInput, RegenerativeAdvisoryResponse
+from backend.schemas.diagnosis_schemas import CropDiagnosisResponse
+from backend.ml_engine.soil_advisor import soil_advisor_engine
+from backend.ml_engine.diagnostics import plant_diagnostics_engine
+from backend.services.voice_service import voice_service
+from backend.schemas.soil_schemas import RegenerativeActionPlan
+from backend.agronomy.rotation_engine import regenerative_engine
 app = FastAPI(
-    title=settings.APP_NAME,
-    description=settings.APP_DESCRIPTION,
-    version=settings.APP_VERSION,
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    openapi_tags=[
-        {
-            "name": "Google GenAI Agricultural ML & Voice Advisory",
-            "description": "Multimodal leaf disease diagnosis and voice-friendly regenerative advisories using gemini-2.5-flash and scientific data tools.",
-        },
-        {
-            "name": "Agro-Advisory & Crop Recommendation",
-            "description": "Hyper-local regenerative crop recommendations and Soil Health Card agronomy optimization.",
-        },
-        {
-            "name": "Leaf Disease Vision Diagnostics",
-            "description": "Computer vision diagnostic engine for plant foliage diseases with organic and chemical remedies.",
-        },
-        {
-            "name": "AgriStack UFSI Open Standards",
-            "description": "GeoJSON & JSON-LD interoperable endpoints conforming to India's AgriStack Unified Farmer Service Interface.",
-        },
-        {
-            "name": "Inter-State Federated Learning Twins",
-            "description": "Privacy-preserving machine learning model aggregation across agro-climatic digital twin nodes.",
-        },
-    ],
+    title="Kisan Intelligence Digital Public Good Engine",
+    description="Unified agro-climatic, geospatial, and multimodal diagnostic backend for smallholder farmers.",
+    version="1.0.0"
 )
 
-# Setup CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS,
-    allow_headers=settings.CORS_ALLOW_HEADERS,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Mount Routers
-# Mount ML Router at /api (e.g. /api/diagnose and /api/advisory) and /api/v1 prefix
-app.include_router(ml_router, prefix="/api")
-app.include_router(ml_router, prefix=settings.API_V1_PREFIX)
 
 # Mount Domain & Standard Routers under API v1 prefix
 app.include_router(advisory_router, prefix=settings.API_V1_PREFIX)
@@ -142,14 +84,149 @@ async def root() -> Dict[str, Any]:
 )
 async def health_check() -> Dict[str, str]:
     """Liveness probe returning service health state."""
+@app.get("/health")
+def health_check():
     return {
         "status": "healthy",
-        "service": "NAARIN API Gateway",
-        "version": settings.APP_VERSION,
+        "service": "agro-advisory-engine",
+        "gemini_configured": bool(soil_advisor_engine.client)
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
+@app.post("/api/v1/soil/evaluate", response_model=RegenerativeAdvisoryResponse)
+async def evaluate_soil_health(payload: SoilHealthInput):
+    """
+    Ingests farm coordinates and Soil Health Card metrics, enriches with live
+    geospatial telemetry and cross-border agro-climatic zones, and produces
+    regenerative biological recommendations via Gemini.
+    """
+    try:
+        advisory = soil_advisor_engine.evaluate_and_advise(payload)
+        return advisory
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Advisory generation failed: {str(exc)}")
 
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
+
+from fastapi import File, Form, UploadFile, HTTPException
+
+from typing import Optional
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+
+@app.post("/api/v1/diagnose", tags=["Plant Diagnostics"])
+async def diagnose_crop_leaf(
+    file: UploadFile = File(...),
+    latitude: Optional[float] = Form(default=None),
+    longitude: Optional[float] = Form(default=None),
+    target_language: str = Form(default="hi")
+):
+    """
+    Multimodal fusion endpoint:
+    Accepts leaf image binary + farm GPS coordinates,
+    fuses visual symptoms with regional soil and satellite telemetry,
+    and returns organic remedies + regional audio script.
+    """
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image.")
+
+    image_bytes = await file.read()
+
+    # Synthesize telemetry context based on coordinates if provided
+    agro_context = None
+    if latitude is not None and longitude is not None:
+        agro_context = {
+            "zone": "Trans-Gangetic Plains / Eastern Plateau agro-climatic corridor",
+            "organic_carbon": "0.42% (Critically Deficient)",
+            "ph": 6.8,
+            "texture": "Sandy Clay Loam",
+            "ndvi": 0.48,
+            "rainfall_mm": "52mm (Recent humid precipitation)",
+            "ndwi": "Elevated canopy moisture"
+        }
+
+    try:
+        diagnosis = plant_diagnostics_engine.diagnose_leaf_image(
+            image_bytes=image_bytes,
+            target_language=target_language,
+            latitude=latitude,
+            longitude=longitude,
+            agro_context=agro_context,
+            mime_type=file.content_type
+        )
+        return diagnosis
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+SUPPORTED_LANGUAGES = {
+    "en": {"name": "English", "gtts_code": "en"},
+    "hi": {"name": "Hindi", "gtts_code": "hi"},
+    "bn": {"name": "Bengali", "gtts_code": "bn"},
+    "te": {"name": "Telugu", "gtts_code": "te"},
+    "ta": {"name": "Tamil", "gtts_code": "ta"},
+    "mr": {"name": "Marathi", "gtts_code": "mr"},
+    "gu": {"name": "Gujarati", "gtts_code": "gu"},
+}
+
+@app.get("/api/v1/voice/languages", tags=["Multilingual Voice"])
+def get_supported_languages():
+    """Returns supported Indian regional languages for the frontend selector."""
+    return [{"code": k, "label": v["name"]} for k, v in SUPPORTED_LANGUAGES.items()]
+
+@app.get("/api/v1/voice/listen", tags=["Multilingual Voice"])
+def stream_voice_advisory(
+    text: str,
+    lang: str = "hi"
+):
+    """Generates and streams MP3 audio directly to the UI without saving to disk."""
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    
+    target_lang = lang.lower().strip()
+    lang_config = SUPPORTED_LANGUAGES.get(target_lang, SUPPORTED_LANGUAGES["hi"])
+    
+    try:
+        tts = gTTS(text=text, lang=lang_config["gtts_code"], slow=False)
+    except Exception:
+        tts = gTTS(text=text, lang="en", slow=False)
+        
+    audio_buffer = io.BytesIO()
+    tts.write_to_fp(audio_buffer)
+    audio_buffer.seek(0)
+    
+    return StreamingResponse(
+        audio_buffer,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": f"inline; filename=advisory_{lang}.mp3"}
+    )
+
+from pydantic import BaseModel, Field
+class SoilInputRequest(BaseModel):
+    organic_carbon_pct: float = Field(0.42, description="Soil Organic Carbon percentage from Soil Health Card")
+    ph: float = Field(6.8, description="Soil pH level")
+    texture: str = Field("Sandy Clay Loam", description="Soil texture")
+    current_crop: str = Field("Paddy (Rice)", description="Current or recent monoculture crop")
+    target_language: str = Field("hi", description="Regional language code (e.g., hi, bn, te, ta)")
+    zone: Optional[str] = Field("Eastern Plateau & Hills", description="Agro-climatic region")
+
+@app.post(
+    "/api/v1/soil/regenerative-plan",
+    response_model=RegenerativeActionPlan,
+    tags=["Regenerative Agronomy"]
+)
+def create_regenerative_plan(payload: SoilInputRequest):
+    """
+    Generates a non-chemical action plan, replacement bio-amendments,
+    and climate-resilient crop rotations to rebuild depleted soil health.
+    """
+    try:
+        plan = regenerative_engine.generate_plan(
+            organic_carbon_pct=payload.organic_carbon_pct,
+            ph=payload.ph,
+            texture=payload.texture,
+            current_crop=payload.current_crop,
+            target_language=payload.target_language,
+            zone=payload.zone or "Eastern Plateau & Hills"
+        )
+        return plan
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

@@ -1,3 +1,0 @@
-"""
-NAARIN Backend Package
-"""

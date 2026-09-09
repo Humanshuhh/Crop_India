@@ -1,41 +1,28 @@
-"""
-Diagnosis Schemas
-Request and Response models for plant leaf disease computer vision diagnostics.
-"""
-
-from datetime import datetime
-from enum import Enum
-from typing import List, Optional
+﻿from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
-class SeverityEnum(str, Enum):
-    NONE = "None (Healthy)"
-    LOW = "Low"
-    MODERATE = "Moderate"
-    SEVERE = "Severe"
+class EcoFriendlyRemedy(BaseModel):
+    title: str = Field(..., description="Name of the organic/biological solution")
+    preparation: str = Field(..., description="How to prepare the organic solution at farm level")
+    application: str = Field(..., description="Specific spray timing, dosage per liter, and application frequency")
 
 
-class ImageMetadata(BaseModel):
-    """Uploaded image metadata."""
-    filename: str
-    content_type: str
-    width: int
-    height: int
-    file_size_bytes: int
-
-
-class DiagnosisResponse(BaseModel):
-    """Leaf disease diagnostic response."""
-    diagnosis_id: str
-    disease_name: str
-    pathogen_scientific_name: Optional[str] = None
-    affected_crop: str
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Model inference confidence score (0-1)")
-    severity: SeverityEnum
-    symptoms_detected: List[str]
-    organic_remedy: str = Field(..., description="Bio-pesticide / traditional organic treatment formulation")
-    chemical_last_resort: str = Field(..., description="Controlled chemical fungicide/insecticide dosage as last resort")
-    preventive_measures: List[str]
-    image_metadata: ImageMetadata
-    analyzed_at: datetime
+class CropDiagnosisResponse(BaseModel):
+    is_plant_detected: bool = Field(..., description="True if a crop leaf/foliage is visible, False if unrelated image")
+    crop_name: Optional[str] = Field(None, description="Identified crop species")
+    detected_condition: str = Field(..., description="Name of disease, nutrient chlorosis, or pest infection")
+    confidence_level: str = Field(..., description="HIGH, MEDIUM, or LOW based on visual symptom clarity")
+    visual_symptoms: List[str] = Field(default_factory=list, description="Observed lesions, pustules, discolorations, or curling")
+    underlying_cause: str = Field(..., description="Pathogen type or abiotic stress")
+    eco_friendly_remedies: List[EcoFriendlyRemedy] = Field(
+        default_factory=list,
+        description="Biological and low-cost eco-friendly treatments strictly avoiding toxic chemicals"
+    )
+    preventive_cultural_practices: List[str] = Field(
+        default_factory=list,
+        description="Field sanitation, spacing, bio-mulching, or crop rotation"
+    )
+    spoken_summary: str = Field(
+        ..., description="Direct, conversational diagnosis script for the farmer"
+    )

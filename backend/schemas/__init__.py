@@ -1,67 +1,35 @@
-"""
-NAARIN Schemas Package
-"""
-
-from backend.schemas.advisory_schemas import (
-    NutrientRating,
-    SeasonEnum,
-    IrrigationSourceEnum,
-    SoilCustomOverride,
-    AdvisoryRequest,
-    WeatherSummary,
-    SoilHealthProfile,
-    CropRecommendation,
-    BioFertilizerRecommendation,
-    RegenerativePractice,
-    SoilRestorationScore,
-    LocationContext,
-    AdvisoryResponse,
+﻿from backend.schemas.common import (
+    Coordinates,
+    NutrientLevel,
+    LanguageCode,
+    AgroClimaticZoneInfo,
 )
 from backend.schemas.diagnosis_schemas import (
-    SeverityEnum,
-    ImageMetadata,
-    DiagnosisResponse,
+    CropDiagnosisResponse,
+    EcoFriendlyRemedy,
 )
-from backend.schemas.agristack_schemas import (
-    GeoJSONGeometryPoint,
-    AgriStackAdvisoryProperties,
-    AgriStackGeoJSONFeature,
-    AgriStackFeatureCollection,
-    TwinSyncRequest,
-    TwinSyncResponse,
+from backend.schemas.soil_schemas import (
+    SoilHealthCardInput,
+    SoilEvaluationReport,
 )
-
-from backend.schemas.ml_schemas import (
-    CropDiagnosisSchema,
-    AdvisoryQueryRequest,
-    AdvisoryQueryResponse,
+from backend.schemas.climate_schemas import (
+    WeatherTelemetry,
+)
+from backend.schemas.advisory_schemas import (
+    RegenerativeAdvisoryResponse,
+    CropRecommendation,
 )
 
 __all__ = [
-    "NutrientRating",
-    "SeasonEnum",
-    "IrrigationSourceEnum",
-    "SoilCustomOverride",
-    "AdvisoryRequest",
-    "WeatherSummary",
-    "SoilHealthProfile",
+    "Coordinates",
+    "NutrientLevel",
+    "LanguageCode",
+    "AgroClimaticZoneInfo",
+    "CropDiagnosisResponse",
+    "EcoFriendlyRemedy",
+    "SoilHealthCardInput",
+    "SoilEvaluationReport",
+    "WeatherTelemetry",
+    "RegenerativeAdvisoryResponse",
     "CropRecommendation",
-    "BioFertilizerRecommendation",
-    "RegenerativePractice",
-    "SoilRestorationScore",
-    "LocationContext",
-    "AdvisoryResponse",
-    "SeverityEnum",
-    "ImageMetadata",
-    "DiagnosisResponse",
-    "GeoJSONGeometryPoint",
-    "AgriStackAdvisoryProperties",
-    "AgriStackGeoJSONFeature",
-    "AgriStackFeatureCollection",
-    "TwinSyncRequest",
-    "TwinSyncResponse",
-    "CropDiagnosisSchema",
-    "AdvisoryQueryRequest",
-    "AdvisoryQueryResponse",
 ]
-
