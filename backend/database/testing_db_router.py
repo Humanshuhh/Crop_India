@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from backend.database.schemas import FarmerSchema
+from backend.database.testing_schemas import FarmerSchema
 from backend.database.firebase import get_firestore_db
 
 router = APIRouter(prefix="/db", tags=["Database Operations"])
