@@ -1,7 +1,13 @@
 ﻿import os
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+<<<<<<< HEAD
+from fastapi.responses import JSONResponse
+#checking if apis call adding data to databse or not
+from backend.database.testing_db_router import router as db_router
+=======
 import io
+>>>>>>> origin/main
 
 from fastapi.responses import StreamingResponse
 from gtts import gTTS
@@ -27,6 +33,57 @@ app.add_middleware(
 )
 
 
+# Mount Domain & Standard Routers under API v1 prefix
+app.include_router(advisory_router, prefix=settings.API_V1_PREFIX)
+app.include_router(diagnosis_router, prefix=settings.API_V1_PREFIX)
+app.include_router(agristack_router, prefix=settings.API_V1_PREFIX)
+app.include_router(federation_router, prefix=settings.API_V1_PREFIX)
+# #databse  router
+app.include_router(db_router)
+
+
+@app.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    summary="Root Discovery Endpoint",
+    tags=["System Status"],
+)
+async def root() -> Dict[str, Any]:
+    """Root metadata & service discovery."""
+    return {
+        "network": "NAARIN - National Agro-Advisory & Regenerative Intelligence Network",
+        "standard": "India AgriStack UFSI v1.0 Compliant",
+        "version": settings.APP_VERSION,
+        "status": "operational",
+        "environment": settings.ENVIRONMENT,
+        "ai_module": {
+            "sdk": "google-genai",
+            "model": settings.GEMINI_MODEL,
+            "target_beneficiaries": "Marginal Indian Smallholders (<2 hectares)",
+        },
+        "endpoints": {
+            "documentation": "/docs",
+            "redoc": "/redoc",
+            "openapi_schema": "/openapi.json",
+            "genai_crop_diagnose": "/api/diagnose",
+            "genai_farmer_advisory": "/api/advisory",
+            "agro_advisory_recommend": f"{settings.API_V1_PREFIX}/advisory/recommend",
+            "leaf_disease_diagnosis": f"{settings.API_V1_PREFIX}/diagnosis/predict",
+            "agristack_ufsi_advisories": f"{settings.API_V1_PREFIX}/agristack/ufsi/v1/advisories",
+            "federated_twin_sync": f"{settings.API_V1_PREFIX}/federation/sync-twins",
+        },
+        "json_ld_context": settings.AGRISTACK_CONTEXT_URL,
+    }
+
+
+@app.get(
+    "/health",
+    status_code=status.HTTP_200_OK,
+    summary="Health Check Probe",
+    tags=["System Status"],
+)
+async def health_check() -> Dict[str, str]:
+    """Liveness probe returning service health state."""
 @app.get("/health")
 def health_check():
     return {
