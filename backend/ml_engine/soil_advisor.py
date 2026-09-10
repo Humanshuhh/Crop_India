@@ -39,20 +39,28 @@ class SoilRegenerativeAdvisor:
         self.api_key = get_gemini_key()
         self.client = genai.Client(api_key=self.api_key) if self.api_key else None
         # Active supported model endpoints
-        self.candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash"]
+        self.candidate_models = ["gemini-3.6-flash","gemini-3.7-flash"]
 
     def evaluate_and_advise(self, input_data: SoilHealthInput) -> RegenerativeAdvisoryResponse:
+        # Fallback to check either organic_carbon_pct or organic_carbon_percent
+        soc_val = getattr(input_data, "organic_carbon_pct", getattr(input_data, "organic_carbon_percent", 0.0))
+
         raw_shc = {
             "ph": input_data.ph,
-            "organic_carbon_percent": input_data.organic_carbon_percent,
-            "nitrogen_kg_ha": input_data.nitrogen_kg_ha,
-            "phosphorus_kg_ha": input_data.phosphorus_kg_ha,
-            "potassium_kg_ha": input_data.potassium_kg_ha,
-            "zinc_ppm": input_data.zinc_ppm,
+            "organic_carbon_percent": soc_val,
+            "nitrogen_kg_ha": getattr(input_data, "nitrogen_kg_ha", 0.0),
+            "phosphorus_kg_ha": getattr(input_data, "phosphorus_kg_ha", 0.0),
+            "potassium_kg_ha": getattr(input_data, "potassium_kg_ha", 0.0),
+            "zinc_ppm": getattr(input_data, "zinc_ppm", 0.0),
         }
         soil_profile: NormalizedSoilProfile = soil_normalizer.normalize(raw_shc)
-        zone: ZoneProfile = agro_climatic_engine.resolve_zone(input_data.latitude, input_data.longitude)
-        telemetry: SatelliteTelemetry = geospatial_adapter.build_telemetry_payload(input_data.latitude, input_data.longitude)
+
+        # Handle optional coordinates with regional defaults if not present
+        lat = getattr(input_data, "latitude", None) or 23.66
+        lon = getattr(input_data, "longitude", None) or 86.42
+
+        zone: ZoneProfile = agro_climatic_engine.resolve_zone(lat, lon)
+        telemetry: SatelliteTelemetry = geospatial_adapter.build_telemetry_payload(lat, lon)
 
         system_instruction = (
             "You are an expert regenerative agronomist building a Digital Public Good for smallholder farmers. "

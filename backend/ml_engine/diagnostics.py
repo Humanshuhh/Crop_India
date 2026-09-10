@@ -47,7 +47,7 @@ class PlantDiagnosticsEngine:
     def __init__(self):
         self.api_key = resolve_api_key()
         self.client = genai.Client(api_key=self.api_key) if self.api_key else None
-        self.candidate_models = ["gemini-3.6-flash"]
+        self.candidate_models = ["gemini-3.6-flash","gemini-3.7-flash"]
 
     def diagnose_leaf_image(
         self,

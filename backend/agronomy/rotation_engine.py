@@ -1,24 +1,42 @@
-﻿import json
-import logging
 import os
+import json
+import re
+import warnings
 from typing import Optional
 from google import genai
 from google.genai import types
-from backend.schemas.soil_schemas import RegenerativeActionPlan
 
-logger = logging.getLogger("kisan_sahayak.regenerative")
+from backend.schemas.soil_schemas import (
+    RegenerativeActionPlan,
+    BioAmendment,
+    CropRotationCycle,
+)
 
-def resolve_api_key() -> Optional[str]:
-    return (
-        os.getenv("GEMINI_API_KEY")
-        or os.getenv("GOOGLE_API_KEY")
-        or os.getenv("GOOGLE_GENAI_API_KEY")
-    )
+warnings.filterwarnings("ignore", category=FutureWarning)
 
-class RegenerativeAgronomyEngine:
+
+class RegenerativeRotationEngine:
     def __init__(self):
-        self.api_key = resolve_api_key()
-        self.client = genai.Client(api_key=self.api_key) if self.api_key else None
+        api_key = os.getenv("GEMINI_API_KEY")
+        self.client = genai.Client(api_key=api_key) if api_key else None
+        self.model_name = "gemini-2.5-flash"
+
+    def _clean_and_parse_json(self, raw_text: str) -> dict:
+        """Strips markdown formatting, code block fences, and extracts JSON content."""
+        if not raw_text or not raw_text.strip():
+            raise ValueError("Gemini returned an empty response.")
+
+        cleaned = raw_text.strip()
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.MULTILINE).strip()
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            match = re.search(r"(\{.*\})", cleaned, re.DOTALL)
+            if match:
+                return json.loads(match.group(1))
+            raise ValueError(f"Failed to parse Gemini response as JSON: {raw_text}")
 
     def generate_plan(
         self,
@@ -27,46 +45,90 @@ class RegenerativeAgronomyEngine:
         texture: str,
         current_crop: str,
         target_language: str = "hi",
-        zone: str = "Eastern Plateau & Trans-Gangetic Corridor"
+        zone: str = "Eastern Plateau & Hills",
     ) -> RegenerativeActionPlan:
+        """
+        Generates an organic, non-chemical soil restoration plan and crop rotation
+        strategy tailored to smallholder agronomic conditions.
+        """
+        soc_status = "Critically Deficient" if organic_carbon_pct < 0.50 else "Moderate"
+
+        system_instruction = (
+            "You are an expert agronomist specializing in Indian smallholder regenerative agriculture. "
+            "You provide actionable non-chemical, organic solutions to rebuild soil organic carbon and soil biology. "
+            "Never recommend synthetic chemical fertilizers like Urea, DAP, or MOP. "
+            "Always return strictly valid JSON conforming directly to the requested schema."
+        )
+
+        prompt = f"""
+Given the following farm telemetry and soil test metrics:
+- Agro-climatic Zone: {zone}
+- Soil Organic Carbon (SOC): {organic_carbon_pct}% ({soc_status})
+- Soil pH: {ph}
+- Soil Texture: {texture}
+- Current/Recent Crop: {current_crop}
+- Target Spoken Language Code: {target_language}
+
+Generate a comprehensive regenerative soil restoration plan.
+Return a JSON object with the following exact keys:
+{{
+  "soil_health_assessment": "Detailed assessment of the current carbon depletion and pH",
+  "synthetic_chemical_alert": "Explicit advisory warning against synthetic inputs like Urea and DAP",
+  "biological_amendments": [
+    {{
+      "name": "Name of bio-formulation (e.g. Jeevamrit, Ghanjeevamrit, Trichoderma FYM)",
+      "target_deficiency": "Deficiency addressed",
+      "preparation_or_sourcing": "How the farmer prepares or sources it on-farm",
+      "dosage_and_application": "Clear dosage per acre and frequency"
+    }}
+  ],
+  "regenerative_crop_rotations": [
+    {{
+      "season": "Season name (e.g. Zaid, Kharif, Rabi)",
+      "recommended_crop": "Legume, green manure, or resilient crop",
+      "ecological_role": "Nitrogen fixation, biomass addition, or root aeration",
+      "water_requirement": "Low / Medium / High"
+    }}
+  ],
+  "cultural_water_practices": [
+    "Practical water conservation and mulching methods"
+  ],
+  "spoken_summary": "A warm, natural 2-3 sentence advisory script in language '{target_language}' explaining what to do."
+}}
+"""
+
         if not self.client:
-            raise RuntimeError("Gemini API key is not configured.")
+            raise ValueError("Gemini API client not initialized. GEMINI_API_KEY is missing.")
 
-        # Flag critical soil depletion
-        carbon_status = "Critically Deficient (< 0.50%)" if organic_carbon_pct < 0.50 else "Moderate"
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json",
+                    temperature=0.2,
+                ),
+            )
 
-        prompt = (
-            "You are an expert regenerative agronomist and agro-ecologist advising Indian smallholder farmers.\n"
-            f"The farmer's native language code is '{target_language}'.\n\n"
-            "--- SOIL & AGRO-CLIMATIC TELEMETRY ---\n"
-            f"- Agro-Climatic Zone: {zone}\n"
-            f"- Soil Organic Carbon (SOC): {organic_carbon_pct}% ({carbon_status})\n"
-            f"- Soil pH: {ph}\n"
-            f"- Soil Texture: {texture}\n"
-            f"- Current / Previous Crop: {current_crop}\n"
-            "--------------------------------------\n\n"
-            "MANDATORY REGENERATIVE RULES:\n"
-            "1. ZERO SYNTHETIC CHEMICALS: Do NOT recommend chemical fertilizers (Urea, DAP, MOP) or synthetic pesticides.\n"
-            "2. BIOLOGICAL AMENDMENTS: Prescribe bio-fertilizers (Azotobacter, Rhizobium, PSB), vermicompost, "
-            "Jeevamrit, or green manuring (Dhaincha/Sunn hemp) specifically calibrated to restore depleted Soil Organic Carbon.\n"
-            "3. ROTATION & DIVERSIFICATION: Break monoculture cycles (like continuous rice-wheat) by introducing "
-            "climate-resilient millets (Bajra, Ragi, Jowar) and nitrogen-fixing legumes/pulses (Arhar, Gram, Moong).\n"
-            "4. CULTURAL SOIL HYGIENE: Recommend conservation tillage, mulching with crop residue, and moisture retention.\n"
-            "5. VOICE SCRIPT: Write the 'spoken_summary' entirely in the farmer's language '{target_language}' "
-            "in an encouraging, plain conversational tone suitable for low-literacy farmers."
-        )
+            raw_output = response.text if hasattr(response, "text") and response.text else ""
+            data = self._clean_and_parse_json(raw_output)
 
-        response = self.client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                response_mime_type="application/json",
-                response_schema=RegenerativeActionPlan,
-                tools=None,
-            ),
-        )
+            return RegenerativeActionPlan(
+                soil_health_assessment=data.get("soil_health_assessment", ""),
+                synthetic_chemical_alert=data.get("synthetic_chemical_alert", ""),
+                biological_amendments=[
+                    BioAmendment(**item) for item in data.get("biological_amendments", [])
+                ],
+                regenerative_crop_rotations=[
+                    CropRotationCycle(**item) for item in data.get("regenerative_crop_rotations", [])
+                ],
+                cultural_water_practices=data.get("cultural_water_practices", []),
+                spoken_summary=data.get("spoken_summary", ""),
+            )
 
-        return RegenerativeActionPlan(**json.loads(response.text.strip()))
+        except Exception as exc:
+            raise ValueError(f"Failed to parse Gemini response: {str(exc)}") from exc
 
-regenerative_engine = RegenerativeAgronomyEngine()
+
+regenerative_engine = RegenerativeRotationEngine()
