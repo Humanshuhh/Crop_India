@@ -6,9 +6,14 @@ httpx>=0.27.0
 python-multipart>=0.0.9
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
+#Image Preprocessing
 pillow>=10.2.0
 google-genai>=2.0.0
 python-dotenv>=1.0.0
 #added during two database setup 1)bigquery 2)firebase
 firebase-admin
-google-cloud-bigquery
+google-cloud-
+# Automated Background Telemetry & Networking
+apscheduler
+# Async HTTP Client (Required for Open-Meteo weather telemetry calls)
+httpx>=0.27.0
