@@ -1,7 +1,13 @@
 ﻿from typing import Any, Dict
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from backend.agronomy.telemetry_worker import run_daily_telemetry_scan
+from backend.routers.early_warning import router as early_warning_router
+from backend.routers.farmer_assistant import router as assistant_router
 # Database and Testing Router
 from backend.database.testing_db_router import router as db_router
 from backend.database.firebase import get_firestore_db
@@ -11,6 +17,7 @@ from backend.ml_engine.soil_advisor import soil_advisor_engine
 from backend.routers.diagnostics import router as diagnostics_router
 from backend.routers.soil import router as soil_router
 from backend.routers.voice import router as voice_router
+from backend.routers.early_warning import router as early_warning_router
 
 app = FastAPI(
     title="Kisan Intelligence Digital Public Good Engine",
@@ -32,6 +39,15 @@ app.include_router(db_router)
 app.include_router(diagnostics_router)
 app.include_router(soil_router)
 app.include_router(voice_router)
+app.include_router(early_warning_router)
+app.include_router(assistant_router)
+
+
+
+
+@app.get("/health", tags=["Health Check"])
+def health_check():
+    return {"status": "healthy"}
 
 
 @app.get(
@@ -75,3 +91,38 @@ def health_check() -> Dict[str, Any]:
         "gemini_configured": bool(getattr(soil_advisor_engine, "client", False)),
         "firestore_connected": db is not None,
     }
+
+try:
+    from backend.database import db
+except ImportError:
+    db = None
+
+scheduler = AsyncIOScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db_client = get_firestore_db()
+    
+    # Schedule the scan to run daily at 10 sec
+    scheduler.add_job(
+    run_daily_telemetry_scan,
+    trigger="interval",
+    seconds=10,
+    args=[db],
+    id="daily_farm_scan",
+    replace_existing=True,
+)
+    scheduler.start()
+    print("[Scheduler] Automated agricultural telemetry worker started.")
+    
+    yield
+    
+    scheduler.shutdown()
+    print("[Scheduler] Automated worker shut down.")
+
+app.include_router(early_warning_router)
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}

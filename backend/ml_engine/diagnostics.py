@@ -124,6 +124,28 @@ class PlantDiagnosticsEngine:
 
         raise RuntimeError(f"All diagnostic candidate models failed. Last error: {last_error}")
 
+import io
+from PIL import Image, ImageOps
 
+def preprocess_image(image_bytes: bytes, max_dim: int = 1024, quality: int = 85) -> bytes:
+    """
+    Resizes the image to a maximum dimension of max_dim x max_dim (preserving aspect ratio)
+    and compresses it as JPEG to minimize API latency and token cost.
+    """
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        # Automatically rotate based on EXIF metadata if present
+        img = ImageOps.exif_transpose(img)
+
+        # Convert palette/transparency to RGB for JPEG compression
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # Resize while maintaining aspect ratio
+        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        # Compress to JPEG
+        output_buffer = io.BytesIO()
+        img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
+        return output_buffer.getvalue()
 # Crucial: instantiate engine for imports
 plant_diagnostics_engine = PlantDiagnosticsEngine()
