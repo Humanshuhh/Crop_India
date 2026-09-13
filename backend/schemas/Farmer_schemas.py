@@ -1,17 +1,28 @@
-from typing import List, Optional
 from pydantic import BaseModel, Field
-from backend.schemas.common import Coordinates
+from typing import Optional, List
 
-class FarmerLocation(Coordinates):
-    village: str = Field(..., description="Village name")
-    district: str = Field(..., description="District name")
-    state: str = Field(..., description="State name")
+# Schema for Farmer Profile
+class FarmerSchema(BaseModel):
+    farmer_id: str = Field(..., description="Unique ID for the farmer")
+    name: str
+    phone: str
+    state: str
+    district: str
+    language: str = "en"
 
-class FarmerCreateSchema(BaseModel):
-    farmer_id: str = Field(..., description="Unique document ID (e.g., farmer_101)")
-    name: str = Field(..., description="Farmer full name")
-    phone: str = Field(..., description="Phone number")
-    location: FarmerLocation = Field(..., description="Geographic and administrative location")
-    land_area_acres: float = Field(..., gt=0, description="Operational plot size in acres")
-    primary_crops: List[str] = Field(default_factory=list, description="Active or historical standing crops")
-    api_key: Optional[str] = Field(None, description="Farm-level authentication token")
+# Schema for Field / Land Details
+class FieldSchema(BaseModel):
+    field_id: str
+    farmer_id: str
+    area_acres: float
+    soil_type: Optional[str] = None
+    crops_grown: List[str] = []
+
+# Schema for Crop Diagnosis Entry
+class DiagnosisRecordSchema(BaseModel):
+    diagnosis_id: str
+    farmer_id: str
+    image_url: str
+    disease_detected: str
+    confidence_score: float
+    recommended_action: str
