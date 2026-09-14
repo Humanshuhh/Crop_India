@@ -1,53 +1,23 @@
 # backend/routers/early_warning.py
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from datetime import datetime, timezone
 import uuid
 
-# Import  initialized Firestore client
-# Adjust import path to match  project structure (e.g., from backend.database.firestore import db)
-try:
-    from backend.database import db
-except ImportError:
-    # Graceful fallback if database client is configured elsewhere
-    db = None
+# 1. Clean Schema Imports (Moved out of the router!)
+from backend.schemas.warning_schemas import (
+    TelemetrySnapshot,
+    EarlyWarningEvaluationRequest,
+    EarlyWarningAdvisory
+)
+
+# 2. Clean Database Imports (The Dual-Database Approach)
+# Adjust these imports to match the exact names of your CRUD files
+from backend.database.firestore_crud import save_early_warning_firestore
+from backend.database.bigquery_crud import log_warning_bigquery
 
 router = APIRouter(prefix="/api/v1/early-warning", tags=["Predictive Early Warning"])
-
-
-# --- Schemas ---
-
-class TelemetrySnapshot(BaseModel):
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    ndvi: float = Field(..., ge=-1.0, le=1.0, description="Vegetation vigor index")
-    ndwi: float = Field(..., ge=-1.0, le=1.0, description="Canopy water index")
-    temperature_c: float
-    relative_humidity_pct: float
-    rainfall_mm: float
-
-
-class EarlyWarningEvaluationRequest(BaseModel):
-    farmer_id: Optional[str] = "farmer_101"
-    latitude: float
-    longitude: float
-    zone: Optional[str] = "Eastern Plateau & Hills"
-    target_language: Optional[str] = "hi"
-    baseline_ndvi: Optional[float] = 0.65
-    telemetry_series: List[TelemetrySnapshot]
-
-
-class EarlyWarningAdvisory(BaseModel):
-    warning_id: str
-    risk_level: str  # "LOW", "MODERATE", "HIGH", "CRITICAL"
-    anomaly_detected: bool
-    predicted_stress_type: Optional[str] = None
-    confidence_score: float
-    proactive_actions: List[str]
-    spoken_advisory: str
-    timestamp: datetime
-
 
 # --- Detection Engine ---
 
@@ -63,7 +33,7 @@ def run_time_series_anomaly_check(
     recent = history[-1]
     ndvi_drop = baseline_ndvi - recent.ndvi
 
-    # Fungal pathogen risk: Elevated canopy moisture + high RH + declining vegetation index
+    # Fungal pathogen risk
     if recent.relative_humidity_pct > 80.0 and recent.ndwi > 0.4 and ndvi_drop > 0.15:
         return {
             "risk_level": "HIGH",
@@ -112,7 +82,7 @@ def run_time_series_anomaly_check(
 async def evaluate_crop_risk(payload: EarlyWarningEvaluationRequest):
     """
     Analyzes satellite telemetry time-series to detect pre-symptomatic crop stress.
-    Automatically persists alerts into the early_warnings Firestore collection.
+    Automatically persists alerts to Firestore (for mobile) and BigQuery (for analytics).
     """
     try:
         analysis = run_time_series_anomaly_check(
@@ -134,18 +104,26 @@ async def evaluate_crop_risk(payload: EarlyWarningEvaluationRequest):
             timestamp=now
         )
 
-        # Persist alert to Firestore if anomaly detected and DB is accessible
-        if db is not None and analysis["anomaly_detected"]:
-            doc_data = {
-                "warning_id": warning_id,
-                "farmer_id": payload.farmer_id,
-                "latitude": payload.latitude,
-                "longitude": payload.longitude,
-                "zone": payload.zone,
-                "analysis": advisory_record.model_dump(),
-                "created_at": now.isoformat()
-            }
-            db.collection("early_warnings").document(warning_id).set(doc_data)
+        # 3. The Best Approach: Dual-Database Write
+        if analysis["anomaly_detected"]:
+            # A. Save full data to Firestore for the UI
+            save_early_warning_firestore(
+                warning_id=warning_id,
+                farmer_id=payload.farmer_id,
+                latitude=payload.latitude,
+                longitude=payload.longitude,
+                zone=payload.zone,
+                advisory_data=advisory_record.model_dump()
+            )
+            
+            # B. Save flat metrics to BigQuery for the Dashboard
+            log_warning_bigquery(
+                warning_id=warning_id,
+                farmer_id=payload.farmer_id,
+                zone=payload.zone,
+                risk_level=analysis["risk_level"],
+                stress_type=analysis["predicted_stress_type"] or "Unknown"
+            )
 
         return advisory_record
 
