@@ -6,13 +6,15 @@ from .bigquery import get_bigquery_client
 from .firestore_crud import (
     save_farmer_profile,
     save_soil_record,
-    save_leaf_diagnostic
+    save_leaf_diagnostic,
+    save_early_warning_firestore
 )
 
 # Export BigQuery CRUD Operations (Analytics & Bulk Data)
 from .bigquery_crud import (
     ingest_historical_weather,
-    ingest_bulk_shc
+    ingest_bulk_shc,
+    log_warning_bigquery
 )
 
 # Export Sync Operations (Cross-Database Pipeline)
@@ -25,7 +27,9 @@ __all__ = [
     "save_farmer_profile",
     "save_soil_record",
     "save_leaf_diagnostic",
+    "save_early_warning_firestore",
     "ingest_historical_weather",
     "ingest_bulk_shc",
+    "log_warning_bigquery",
     "sync_soil_records_to_bigquery"
 ]
