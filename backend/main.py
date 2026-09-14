@@ -1,12 +1,13 @@
-﻿from typing import Any, Dict
+﻿# backend/main.py
+
+from typing import Any, Dict
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+
 from backend.agronomy.telemetry_worker import run_daily_telemetry_scan
-from backend.routers.early_warning import router as early_warning_router
-from backend.routers.farmer_assistant import router as assistant_router
 from backend.database.firebase import get_firestore_db
 from backend.ml_engine.soil_advisor import soil_advisor_engine
 
@@ -14,11 +15,44 @@ from backend.ml_engine.soil_advisor import soil_advisor_engine
 from backend.routers.diagnostics import router as diagnostics_router
 from backend.routers.soil import router as soil_router
 from backend.routers.voice import router as voice_router
+from backend.routers.early_warning import router as early_warning_router
+from backend.routers.farmer_assistant import router as assistant_router
+from backend.routers.telemetry import router as telemetry_router
+
+scheduler = AsyncIOScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manages application startup and shutdown lifecycle.
+    Initializes Firestore client and the background agronomic telemetry worker.
+    """
+    db_client = get_firestore_db()
+
+    # Schedule the scan to run automatically
+    scheduler.add_job(
+        run_daily_telemetry_scan,
+        trigger="interval",
+        seconds=30,  # 30 seconds for active testing; change to hours=12 or 24 for production
+        args=[db_client],
+        id="daily_farm_scan",
+        replace_existing=True,
+    )
+    scheduler.start()
+    print("[Scheduler] Automated agricultural telemetry worker started.")
+
+    yield
+
+    scheduler.shutdown()
+    print("[Scheduler] Automated agricultural telemetry worker shut down.")
+
 
 app = FastAPI(
     title="Kisan Intelligence Digital Public Good Engine",
     description="Unified agro-climatic, geospatial, and multimodal diagnostic backend for smallholder farmers.",
     version="1.0.0",
+    lifespan=lifespan,  # Bound the lifespan handler to your app instance
 )
 
 # CORS configuration
@@ -36,6 +70,8 @@ app.include_router(soil_router)
 app.include_router(voice_router)
 app.include_router(early_warning_router)
 app.include_router(assistant_router)
+app.include_router(telemetry_router)
+
 
 @app.get(
     "/",
@@ -58,8 +94,12 @@ async def root() -> Dict[str, Any]:
             "soil_regenerative_plan": "/api/v1/soil/regenerative-plan",
             "voice_languages": "/api/v1/voice/languages",
             "voice_stream": "/api/v1/voice/listen",
+            "telemetry_surface_map": "/api/v1/telemetry/sentinel-surface-map",
+            "telemetry_zones": "/api/v1/telemetry/agro-climatic-zones",
+            "early_warning_alerts": "/api/v1/early-warning/alerts",
         },
     }
+
 
 @app.get(
     "/health",
@@ -76,31 +116,3 @@ def health_check() -> Dict[str, Any]:
         "gemini_configured": bool(getattr(soil_advisor_engine, "client", False)),
         "firestore_connected": db is not None,
     }
-
-try:
-    from backend.database import db
-except ImportError:
-    db = None
-
-scheduler = AsyncIOScheduler()
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    db_client = get_firestore_db()
-    
-    # Schedule the scan to run daily at 10 sec
-    scheduler.add_job(
-        run_daily_telemetry_scan,
-        trigger="interval",
-        seconds=10,
-        args=[db],
-        id="daily_farm_scan",
-        replace_existing=True,
-    )
-    scheduler.start()
-    print("[Scheduler] Automated agricultural telemetry worker started.")
-    
-    yield
-    
-    scheduler.shutdown()
-    print("[Scheduler] Automated worker shut down.")
