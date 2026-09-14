@@ -12,7 +12,7 @@ google-genai>=2.0.0
 python-dotenv>=1.0.0
 #added during two database setup 1)bigquery 2)firebase
 firebase-admin
-google-cloud-
+google-cloud-bigquery
 # Automated Background Telemetry & Networking
 apscheduler
 # Async HTTP Client (Required for Open-Meteo weather telemetry calls)

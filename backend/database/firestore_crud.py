@@ -2,6 +2,8 @@ from backend.database.firebase import get_firestore_db
 from backend.schemas.Farmer_schemas import FarmerSchema
 from backend.schemas.soil_schemas import SoilHealthCardInput, RegenerativeActionPlan
 from backend.schemas.diagnosis_schemas import CropDiagnosisResponse
+# 1. ADDED YOUR NEW SCHEMA IMPORT HERE:
+from backend.schemas.warning_schemas import EarlyWarningAdvisory 
 from datetime import datetime
 
 def save_farmer_profile(farmer_data: FarmerSchema) -> bool:
@@ -19,7 +21,6 @@ def save_soil_record(farmer_id: str, record_id: str, soil_input: SoilHealthCardI
     if not db:
         return False
     
-    # Merging the input metrics and the output plan into a single record
     document_data = {
         "farmer_id": farmer_id,
         "raw_metrics": soil_input.model_dump(),
@@ -42,3 +43,34 @@ def save_leaf_diagnostic(farmer_id: str, diagnostic_id: str, diagnosis: CropDiag
     }
     db.collection("leaf_diagnostics").document(diagnostic_id).set(document_data)
     return True
+
+# 2. UPDATED TO USE YOUR PYDANTIC SCHEMA
+def save_early_warning_firestore(
+    warning_id: str, 
+    farmer_id: str, 
+    latitude: float, 
+    longitude: float, 
+    zone: str, 
+    advisory: EarlyWarningAdvisory  
+) -> bool:
+    """Saves the full early warning advisory to Firestore for the frontend UI."""
+    db = get_firestore_db()
+    if not db:
+        return False
+    
+    document_data = {
+        "warning_id": warning_id,
+        "farmer_id": farmer_id,
+        "latitude": latitude,
+        "longitude": longitude,
+        "zone": zone,
+        "analysis": advisory.model_dump(), # We dump the schema directly into the DB here
+        "created_at": datetime.utcnow().isoformat()
+    }
+    
+    try:
+        db.collection("early_warnings").document(warning_id).set(document_data)
+        return True
+    except Exception as e:
+        print(f"Firestore save error: {e}")
+        return False
