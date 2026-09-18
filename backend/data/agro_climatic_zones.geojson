@@ -1,0 +1,126 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "zone_id": 7,
+                "zone_name": "Eastern Plateau and Hills Region",
+                "major_states": [
+                    "Jharkhand",
+                    "Odisha",
+                    "West Bengal",
+                    "Chhattisgarh"
+                ],
+                "primary_soil": "Red and Laterite Soils",
+                "rainfall_category": "Sub-humid to Humid"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            83.3,
+                            21.5
+                        ],
+                        [
+                            87.8,
+                            21.5
+                        ],
+                        [
+                            87.8,
+                            25.3
+                        ],
+                        [
+                            83.3,
+                            25.3
+                        ],
+                        [
+                            83.3,
+                            21.5
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "zone_id": 4,
+                "zone_name": "Middle Gangetic Plains",
+                "major_states": [
+                    "Uttar Pradesh",
+                    "Bihar"
+                ],
+                "primary_soil": "Alluvial",
+                "rainfall_category": "Moist Sub-humid"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            81.5,
+                            24.5
+                        ],
+                        [
+                            87.5,
+                            24.5
+                        ],
+                        [
+                            87.5,
+                            27.5
+                        ],
+                        [
+                            81.5,
+                            27.5
+                        ],
+                        [
+                            81.5,
+                            24.5
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "zone_id": 3,
+                "zone_name": "Lower Gangetic Plains",
+                "major_states": [
+                    "West Bengal"
+                ],
+                "primary_soil": "Deltaic Alluvium",
+                "rainfall_category": "Humid"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            87.0,
+                            21.5
+                        ],
+                        [
+                            89.5,
+                            21.5
+                        ],
+                        [
+                            89.5,
+                            26.5
+                        ],
+                        [
+                            87.0,
+                            26.5
+                        ],
+                        [
+                            87.0,
+                            21.5
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}
