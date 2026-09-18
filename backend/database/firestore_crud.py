@@ -74,3 +74,51 @@ def save_early_warning_firestore(
     except Exception as e:
         print(f"Firestore save error: {e}")
         return False
+def get_admin_profile(username_or_email: str) -> Optional[Dict[str, Any]]:
+    """Retrieves an admin profile by email or document ID."""
+    db = get_firestore_db()
+    if not db:
+        return None
+
+    try:
+        # First check direct document ID
+        doc = db.collection("admins").document(username_or_email).get()
+        if doc.exists:
+            return {"admin_id": doc.id, **doc.to_dict()}
+
+        # Fallback search by email field if document ID is not email
+        query = db.collection("admins").where("email", "==", username_or_email).limit(1).stream()
+        for match in query:
+            return {"admin_id": match.id, **match.to_dict()}
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching admin profile: {e}")
+        return None
+
+
+def get_admin_dashboard_stats() -> Dict[str, Any]:
+    """Aggregates system-wide counts across Firestore collections for the admin dashboard."""
+    db = get_firestore_db()
+    if not db:
+        return {
+            "total_farmers": 0,
+            "active_warnings": 0,
+            "soil_records_count": 0,
+            "diagnostics_count": 0,
+        }
+
+    try:
+        return {
+            "total_farmers": len(list(db.collection("farmers").stream())),
+            "active_warnings": len(list(db.collection("early_warnings").stream())),
+            "soil_records_count": len(list(db.collection("soil_health_records").stream())),
+            "diagnostics_count": len(list(db.collection("leaf_diagnostics").stream())),
+        }
+    except Exception as e:
+        logger.error(f"Error aggregating admin stats: {e}")
+        return {
+            "total_farmers": 0,
+            "active_warnings": 0,
+            "soil_records_count": 0,
+            "diagnostics_count": 0,
+        }
