@@ -19,6 +19,12 @@ from backend.schemas.advisory_schemas import (
     RegenerativeAdvisoryResponse,
     CropRecommendation,
 )
+# 1. ADD THIS NEW IMPORT:
+from backend.schemas.auth_schemas import (
+    LoginRequest,
+    LoginResponse,
+    AdminProfileSchema,
+)
 
 __all__ = [
     "Coordinates",
@@ -32,4 +38,7 @@ __all__ = [
     "WeatherTelemetry",
     "RegenerativeAdvisoryResponse",
     "CropRecommendation",
+    "LoginRequest",        # <-- Added
+    "LoginResponse",       # <-- Added
+    "AdminProfileSchema",  # <-- Added
 ]
