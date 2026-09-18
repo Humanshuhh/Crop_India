@@ -24,13 +24,16 @@ import { useVoice } from '../context/VoiceContext';
 import { evaluateSoil } from '../services/soil';
 import type { SoilHealthInput, RegenerativeAdvisoryResponse } from '../types/soil.types';
 import type { NormalizedError } from '../types/api.types';
+import type { SupportedLanguage } from '../types/i18n.types';
 import { VoiceReaderButton } from '../components/common/VoiceReaderButton';
-import { LanguageNotice } from '../components/common/LanguageNotice';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
 
 export const KhetSwasthya: React.FC = () => {
   const { t, language } = useLanguage();
   const { isSpeaking, activeContentId, currentSentenceIndex } = useVoice();
+
+  const [soilAdvisoryLanguage, setSoilAdvisoryLanguage] = useState<SupportedLanguage>(language);
 
   // Location form state
   const [coords, setCoords] = useState<{ latitude: string; longitude: string }>({
@@ -135,12 +138,12 @@ export const KhetSwasthya: React.FC = () => {
       phosphorus_kg_ha: shcValues.p ? parseFloat(shcValues.p) : undefined,
       potassium_kg_ha: shcValues.k ? parseFloat(shcValues.k) : undefined,
       zinc_ppm: shcValues.zn ? parseFloat(shcValues.zn) : undefined,
-      target_language: language,
+      target_language: soilAdvisoryLanguage,
     };
 
     setIsSubmitting(true);
     try {
-      const res = await evaluateSoil(payload);
+      const res = await evaluateSoil(payload, soilAdvisoryLanguage);
       setReport(res);
       setSubmittedData({
         provenance: inputOrigin,
@@ -432,8 +435,18 @@ export const KhetSwasthya: React.FC = () => {
         {/* Error Alert */}
         {error && <ErrorMessage error={error} onRetry={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} />}
 
-        {/* Submit Button */}
-        <div>
+        {/* Submit Button & Advisory Language */}
+        <div className="flex flex-col sm:flex-row sm:items-end gap-4 pt-2">
+          <div className="w-full sm:max-w-xs">
+            <ResultLanguageSelector
+              id="soil-advisory-language"
+              label="Soil Advisory Language"
+              value={soilAdvisoryLanguage}
+              onChange={setSoilAdvisoryLanguage}
+              helperText="Soil restoration plan and spoken summary will be generated in this language"
+            />
+          </div>
+
           <button
             type="submit"
             disabled={isSubmitting}
@@ -655,7 +668,6 @@ export const KhetSwasthya: React.FC = () => {
                 sentences={reportSentences}
                 label={t('voiceReadAloud')}
               />
-              <LanguageNotice />
             </div>
           </div>
 

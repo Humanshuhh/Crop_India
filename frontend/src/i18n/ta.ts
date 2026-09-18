@@ -156,6 +156,13 @@ export const ta: TranslationDictionary = {
   authPasswordLength: 'கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்.',
   showPassword: 'கடவுச்சொல்லைக் காட்டு',
   hidePassword: 'கடவுச்சொல்லை மறை',
+  // Onboarding / Welcome Screen
+  welcomeGreeting: 'வணக்கம், விவசாயி அண்ணா',
+  welcomeSubtitle: 'உங்கள் நம்பகமான விவசாய உதவியாளர். தொடர உங்கள் மொழியை தேர்வு செய்யுங்கள்.',
+  welcomeSelectLanguage: 'உங்கள் மொழியை தேர்வு செய்யுங்கள்',
+  welcomeContinueBtn: 'தொடரவும்',
+  welcomeLoginBtn: 'கணக்கில் உள்நுழைக',
+  welcomeSignupBtn: 'புதிய கணக்கு உருவாக்கவும்',
 };
 
 

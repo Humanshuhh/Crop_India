@@ -17,6 +17,18 @@ import { Signup } from '../pages/Signup';
 import { Profile } from '../pages/Profile';
 import { FarmerAssistant } from '../pages/FarmerAssistant';
 import { History } from '../pages/History';
+import { Welcome } from '../pages/Welcome';
+
+const ONBOARDING_KEY = 'kisan_onboarding_done';
+
+/**
+ * Gates the Home route: first-time visitors are redirected to /welcome.
+ * After onboarding is marked done, subsequent visits load Home directly.
+ */
+const HomeOrWelcome: React.FC = () => {
+  const onboardingDone = localStorage.getItem(ONBOARDING_KEY) === 'true';
+  return onboardingDone ? <Home /> : <Navigate to="/welcome" replace />;
+};
 
 export const App: React.FC = () => {
   return (
@@ -28,7 +40,8 @@ export const App: React.FC = () => {
               <Navbar />
               <main className="flex-1">
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<HomeOrWelcome />} />
+                  <Route path="/welcome" element={<Welcome />} />
                   <Route path="/khet-swasthya" element={<KhetSwasthya />} />
                   <Route path="/fasal-rog-pehchan" element={<FasalRogPehchan />} />
                   <Route path="/assistant" element={<FarmerAssistant />} />
@@ -49,3 +62,4 @@ export const App: React.FC = () => {
     </BrowserRouter>
   );
 };
+

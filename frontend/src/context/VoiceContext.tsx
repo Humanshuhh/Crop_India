@@ -1,6 +1,7 @@
-﻿import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from './LanguageContext';
+import { SUPPORTED_LANGUAGES } from '../i18n';
 import type { SupportedLanguage } from '../types/i18n.types';
 
 interface VoiceContextType {
@@ -8,8 +9,9 @@ interface VoiceContextType {
   activeContentId: string | null;
   currentSentenceIndex: number;
   voiceNotice: string | null;
+  voiceNoticeLanguage: SupportedLanguage | null;
   clearVoiceNotice: () => void;
-  speak: (text: string, contentId: string, sentences?: string[]) => void;
+  speak: (text: string, contentId: string, sentences?: string[], targetLang?: SupportedLanguage) => void;
   stop: () => void;
   isLanguageVoiceSupported: (lang: SupportedLanguage) => boolean;
 }
@@ -24,6 +26,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeContentId, setActiveContentId] = useState<string | null>(null);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number>(-1);
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
+  const [voiceNoticeLanguage, setVoiceNoticeLanguage] = useState<SupportedLanguage | null>(null);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   const sentencesRef = useRef<string[]>([]);
@@ -64,11 +67,16 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Rule: Playback MUST stop automatically on route change
   useEffect(() => {
     stop();
+    setVoiceNotice(null);
+    setVoiceNoticeLanguage(null);
   }, [location.pathname, stop]);
 
   // Rule: Playback MUST stop automatically on language change
+  // And clear any voice-unavailable notice from previous language
   useEffect(() => {
     stop();
+    setVoiceNotice(null);
+    setVoiceNoticeLanguage(null);
   }, [language, stop]);
 
   // Check whether device has voice for selected language
@@ -116,9 +124,15 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [availableVoices, findMatchingVoice]
   );
 
-  const speak = (rawText: string, contentId: string, customSentences?: string[]) => {
+  const speak = (
+    rawText: string,
+    contentId: string,
+    customSentences?: string[],
+    targetLang?: SupportedLanguage
+  ) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setVoiceNotice('Speech synthesis is not supported on this browser.');
+      setVoiceNoticeLanguage(null);
       return;
     }
 
@@ -129,12 +143,18 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanText = rawText.replace(/<[^>]*>/g, '').trim();
     if (!cleanText) return;
 
-    // Check voice support for current language
-    const voice = findMatchingVoice(language);
+    // Determine target language and metadata
+    const activeLang = targetLang || language;
+    const activeMeta =
+      SUPPORTED_LANGUAGES.find((l) => l.code === activeLang) || currentLanguageMeta;
+
+    // Check voice support for active language
+    const voice = findMatchingVoice(activeLang);
     if (!voice && availableVoices.length > 0) {
       setVoiceNotice(
-        `Voice playback in ${currentLanguageMeta.name} (${currentLanguageMeta.nativeName}) is not available on this device.`
+        `Voice playback in ${activeMeta.name} (${activeMeta.nativeName}) is not available on this device.`
       );
+      setVoiceNoticeLanguage(activeLang);
       return;
     }
 
@@ -152,6 +172,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentSentenceIndex(0);
     setIsSpeaking(true);
     setVoiceNotice(null);
+    setVoiceNoticeLanguage(null);
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utteranceRef.current = utterance;
@@ -160,7 +181,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utterance.voice = voice;
       utterance.lang = voice.lang;
     } else {
-      utterance.lang = currentLanguageMeta.voiceLangCode;
+      utterance.lang = activeMeta.voiceLangCode;
     }
 
     utterance.rate = 0.95; // Slightly slower pace for clarity in agricultural terms
@@ -189,6 +210,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (e.error !== 'interrupted' && e.error !== 'canceled') {
         console.error('[Kisan Sahayak Voice] Utterance error:', e);
         setVoiceNotice('Voice playback encountered an error.');
+        setVoiceNoticeLanguage(null);
       }
       stop();
     };
@@ -196,7 +218,10 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.speechSynthesis.speak(utterance);
   };
 
-  const clearVoiceNotice = () => setVoiceNotice(null);
+  const clearVoiceNotice = useCallback(() => {
+    setVoiceNotice(null);
+    setVoiceNoticeLanguage(null);
+  }, []);
 
   return (
     <VoiceContext.Provider
@@ -205,6 +230,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         activeContentId,
         currentSentenceIndex,
         voiceNotice,
+        voiceNoticeLanguage,
         clearVoiceNotice,
         speak,
         stop,

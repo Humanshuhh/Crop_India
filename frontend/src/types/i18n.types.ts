@@ -171,5 +171,87 @@ export interface TranslationDictionary {
   authPasswordLength: string;
   showPassword: string;
   hidePassword: string;
+  // Onboarding / Welcome Screen
+  welcomeGreeting: string;
+  welcomeSubtitle: string;
+  welcomeSelectLanguage: string;
+  welcomeContinueBtn: string;
+  welcomeLoginBtn: string;
+  welcomeSignupBtn: string;
+
+  // Navbar — missing keys
+  navKisanMitra: string;
+  navHistory: string;
+  appTagline: string;
+
+  // Footer
+  footerBrandDesc: string;
+  footerDataTransparency: string;
+  footerNoSyntheticData: string;
+  footerSeparateAI: string;
+  footerAdvisoryCharter: string;
+  footerKVKAdvice: string;
+  footerCopyright: string;
+  footerMethodology: string;
+  footerSoilAdvisory: string;
+  footerLeafDiagnostics: string;
+
+  // Home page — hardcoded strings
+  homeDigitalPublicGood: string;
+  homeAskKisanMitra: string;
+  homeCoreValuesSubtitle: string;
+  homeFeatureSubtitle: string;
+  homeBadgeLiveAdvisory: string;
+  homeKhetDesc: string;
+  homeKhetFeature1: string;
+  homeKhetFeature2: string;
+  homeKhetFeature3: string;
+  homeBadgeLeafAPI: string;
+  homeFasalDesc: string;
+  homeFasalFeature1: string;
+  homeFasalFeature2: string;
+  homeFasalFeature3: string;
+  homeKisanMitraTitle: string;
+  homeBadgeVoiceVision: string;
+  homeKisanMitraDesc: string;
+  homeKisanMitraFeature1: string;
+  homeKisanMitraFeature2: string;
+  homeKisanMitraFeature3: string;
+  homeBadgeTelemetry: string;
+  homeTelemetryCardTitle: string;
+  homeTelemetryDesc: string;
+  homeTelemetryFeature1: string;
+  homeTelemetryFeature2: string;
+  homeTelemetryFeature3: string;
+  homeInspectTelemetry: string;
+  homeBadgeHistory: string;
+  homeHistoryTitle: string;
+  homeHistoryDesc: string;
+  homeHistoryFeature1: string;
+  homeHistoryFeature2: string;
+  homeHistoryFeature3: string;
+  homeViewHistory: string;
+  homeConsultKisanMitra: string;
+
+  // Login page
+  loginSubtitle: string;
+  loginEmailLabel: string;
+  loginPasswordLabel: string;
+  loginVerifying: string;
+  loginNoAccount: string;
+  loginSignupHere: string;
+
+  // Signup page
+  signupTitle: string;
+  signupSubtitle: string;
+  signupEmailLabel: string;
+  signupCreatePasswordLabel: string;
+  signupPasswordPlaceholder: string;
+  signupConfirmPasswordLabel: string;
+  signupConfirmPlaceholder: string;
+  signupCreating: string;
+  signupCreateBtn: string;
+  signupHaveAccount: string;
+  signupLoginHere: string;
 }
 

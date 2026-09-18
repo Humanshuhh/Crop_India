@@ -156,6 +156,13 @@ export const mr: TranslationDictionary = {
   authPasswordLength: 'पासवर्ड किमान ६ अक्षरांचा असावा.',
   showPassword: 'पासवर्ड दाखवा',
   hidePassword: 'पासवर्ड लपवा',
+  // Onboarding / Welcome Screen
+  welcomeGreeting: 'शेतकरी बंधू, स्वागत आहे',
+  welcomeSubtitle: 'तुमचा विश्वासू शेती सहाय्यक. पुढे जाण्यासाठी तुमची भाषा निवडा.',
+  welcomeSelectLanguage: 'तुमची भाषा निवडा',
+  welcomeContinueBtn: 'पुढे जा',
+  welcomeLoginBtn: 'खात्यात लॉगिन करा',
+  welcomeSignupBtn: 'नवीन खाते तयार करा',
 };
 
 

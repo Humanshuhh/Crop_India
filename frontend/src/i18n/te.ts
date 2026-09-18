@@ -156,6 +156,13 @@ export const te: TranslationDictionary = {
   authPasswordLength: 'పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి.',
   showPassword: 'పాస్‌వర్డ్ చూపించు',
   hidePassword: 'పాస్‌వర్డ్ దాచు',
+  // Onboarding / Welcome Screen
+  welcomeGreeting: 'స్వాగతం, రైతు అన్నా',
+  welcomeSubtitle: 'మీ నమ్మకమైన వ్యవసాయ సహాయకుడు. కొనసాగడానికి మీ భాష ఎంచుకోండి.',
+  welcomeSelectLanguage: 'మీ భాషను ఎంచుకోండి',
+  welcomeContinueBtn: 'ముందుకు వెళ్ళండి',
+  welcomeLoginBtn: 'ఖాతాలోకి లాగిన్',
+  welcomeSignupBtn: 'కొత్త ఖాతా తయారు చేయండి',
 };
 
 

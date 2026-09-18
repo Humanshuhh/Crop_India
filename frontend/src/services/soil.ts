@@ -1,13 +1,22 @@
-﻿import { apiPostJson } from './apiClient';
+import { apiPostJson } from './apiClient';
 import type { SoilHealthInput, RegenerativeAdvisoryResponse } from '../types/soil.types';
+import type { SupportedLanguage } from '../types/i18n.types';
 
 /**
  * Evaluates farm soil parameters via POST /api/v1/soil/evaluate.
- * Strictly sends only documented fields per Rule 3 and Addendum §1.
+ * Passes target_language so advisory and spoken summary are generated in the requested language.
  */
-export async function evaluateSoil(input: SoilHealthInput): Promise<RegenerativeAdvisoryResponse> {
+export async function evaluateSoil(
+  input: SoilHealthInput,
+  targetLanguage?: SupportedLanguage | string
+): Promise<RegenerativeAdvisoryResponse> {
+  const payload: SoilHealthInput = {
+    ...input,
+    target_language: targetLanguage || input.target_language,
+  };
+
   return await apiPostJson<SoilHealthInput, RegenerativeAdvisoryResponse>(
     '/api/v1/soil/evaluate',
-    input
+    payload
   );
 }

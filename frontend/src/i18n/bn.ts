@@ -156,6 +156,13 @@ export const bn: TranslationDictionary = {
   authPasswordLength: 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।',
   showPassword: 'পাসওয়ার্ড প্রদর্শন করুন',
   hidePassword: 'পাসওয়ার্ড লুকান',
+  // Onboarding / Welcome Screen
+  welcomeGreeting: 'স্বাগতম, কৃষক ভাই',
+  welcomeSubtitle: 'আপনার বিশ্বস্ত কৃষি সহায়ক। চালিয়ে যেতে আপনার ভাষা বেছে নিন।',
+  welcomeSelectLanguage: 'আপনার ভাষা বেছে নিন',
+  welcomeContinueBtn: 'এগিয়ে যান',
+  welcomeLoginBtn: 'অ্যাকাউন্টে লগ ইন করুন',
+  welcomeSignupBtn: 'নতুন অ্যাকাউন্ট তৈরি করুন',
 };
 
 

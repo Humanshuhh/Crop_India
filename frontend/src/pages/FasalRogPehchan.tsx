@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Camera,
   Upload,
@@ -18,14 +18,21 @@ import { useVoice } from '../context/VoiceContext';
 import { diagnoseCrop, MAX_IMAGE_SIZE_BYTES } from '../services/diagnosis';
 import type { CropDiagnosisResponse } from '../types/diagnosis.types';
 import type { NormalizedError } from '../types/api.types';
+import type { SupportedLanguage } from '../types/i18n.types';
 import { VoiceReaderButton } from '../components/common/VoiceReaderButton';
-import { LanguageNotice } from '../components/common/LanguageNotice';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
 
 export const FasalRogPehchan: React.FC = () => {
   const { t, language } = useLanguage();
-  const { isSpeaking, activeContentId, currentSentenceIndex } = useVoice();
+  const { isSpeaking, activeContentId, currentSentenceIndex, clearVoiceNotice } = useVoice();
 
+  const [diagnosisLanguage, setDiagnosisLanguage] = useState<SupportedLanguage>(language);
+
+  // Clear any voice-unavailable notices immediately when diagnosis result language changes
+  useEffect(() => {
+    clearVoiceNotice();
+  }, [diagnosisLanguage, clearVoiceNotice]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
@@ -79,7 +86,7 @@ export const FasalRogPehchan: React.FC = () => {
     setError(null);
 
     try {
-      const diagnosis = await diagnoseCrop(selectedFile, language);
+      const diagnosis = await diagnoseCrop(selectedFile, diagnosisLanguage);
       setResult(diagnosis);
       setTimeout(() => {
         document.getElementById('diagnosis-result-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -202,9 +209,19 @@ export const FasalRogPehchan: React.FC = () => {
         {/* Error message if any */}
         {error && <ErrorMessage error={error} onRetry={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)} />}
 
-        {/* Submit Diagnose Button */}
+        {/* Submit Diagnose Button & Result Language */}
         {imagePreviewUrl && (
-          <div className="pt-2">
+          <div className="pt-2 space-y-4">
+            <div className="w-full sm:max-w-xs">
+              <ResultLanguageSelector
+                id="diagnosis-result-language"
+                label="Diagnosis Result Language"
+                value={diagnosisLanguage}
+                onChange={setDiagnosisLanguage}
+                helperText="AI pathology report will be generated in this language"
+              />
+            </div>
+
             <button
               type="button"
               onClick={handleSubmit}
@@ -252,8 +269,8 @@ export const FasalRogPehchan: React.FC = () => {
                 contentId="crop-diagnosis-report"
                 sentences={diagnosisSentences}
                 label={t('voiceReadAloud')}
+                language={diagnosisLanguage}
               />
-              <LanguageNotice />
             </div>
           </div>
 

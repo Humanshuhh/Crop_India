@@ -1,7 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Volume2, Square, AlertCircle } from 'lucide-react';
 import { useVoice } from '../../context/VoiceContext';
 import { useLanguage } from '../../context/LanguageContext';
+import type { SupportedLanguage } from '../../types/i18n.types';
 
 interface VoiceReaderButtonProps {
   textToRead: string;
@@ -9,6 +10,7 @@ interface VoiceReaderButtonProps {
   sentences?: string[];
   label?: string;
   className?: string;
+  language?: SupportedLanguage;
 }
 
 export const VoiceReaderButton: React.FC<VoiceReaderButtonProps> = ({
@@ -17,9 +19,25 @@ export const VoiceReaderButton: React.FC<VoiceReaderButtonProps> = ({
   sentences,
   label,
   className = '',
+  language: languageProp,
 }) => {
-  const { isSpeaking, activeContentId, speak, stop, voiceNotice, clearVoiceNotice } = useVoice();
-  const { t } = useLanguage();
+  const {
+    isSpeaking,
+    activeContentId,
+    speak,
+    stop,
+    voiceNotice,
+    voiceNoticeLanguage,
+    clearVoiceNotice,
+  } = useVoice();
+  const { t, language: uiLanguage } = useLanguage();
+
+  const activeLanguage = languageProp || uiLanguage;
+
+  // Clear previous voice notices whenever the active language or UI language changes
+  React.useEffect(() => {
+    clearVoiceNotice();
+  }, [activeLanguage, uiLanguage, clearVoiceNotice]);
 
   const isCurrentActive = isSpeaking && activeContentId === contentId;
 
@@ -27,9 +45,14 @@ export const VoiceReaderButton: React.FC<VoiceReaderButtonProps> = ({
     if (isCurrentActive) {
       stop();
     } else {
-      speak(textToRead, contentId, sentences);
+      speak(textToRead, contentId, sentences, activeLanguage);
     }
   };
+
+  // Only display notice if it applies to this button's active language
+  const shouldShowNotice =
+    Boolean(voiceNotice) &&
+    (voiceNoticeLanguage === null || voiceNoticeLanguage === activeLanguage);
 
   return (
     <div className="inline-flex flex-col gap-1.5">
@@ -57,7 +80,7 @@ export const VoiceReaderButton: React.FC<VoiceReaderButtonProps> = ({
         )}
       </button>
 
-      {voiceNotice && (
+      {shouldShowNotice && (
         <div
           role="status"
           className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 flex items-start gap-1.5 mt-1 animate-fadeIn"

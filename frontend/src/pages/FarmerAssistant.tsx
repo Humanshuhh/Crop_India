@@ -24,6 +24,8 @@ import { useVoice } from '../context/VoiceContext';
 import { queryFarmerAssistant } from '../services/assistant';
 import type { AssistantMessage, FarmerAssistantResult } from '../types/assistant.types';
 import type { NormalizedError } from '../types/api.types';
+import type { SupportedLanguage } from '../types/i18n.types';
+import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
 
 const SUGGESTED_QUESTIONS = [
   'How to prepare fermented Jeevamrit at home?',
@@ -88,6 +90,7 @@ export const FarmerAssistant: React.FC = () => {
   const { language, currentLanguageMeta } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
 
+  const [assistantLanguage, setAssistantLanguage] = useState<SupportedLanguage>(language);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -311,7 +314,7 @@ export const FarmerAssistant: React.FC = () => {
     try {
       const result: FarmerAssistantResult = await queryFarmerAssistant({
         query_text: query,
-        target_language: language,
+        target_language: assistantLanguage,
         image_file: imageToSubmit || undefined,
       });
 
@@ -781,6 +784,20 @@ export const FarmerAssistant: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Response Language Control */}
+      <div className="shrink-0 flex items-center justify-between pb-2 px-1">
+        <ResultLanguageSelector
+          id="assistant-response-language"
+          label="Response Language"
+          value={assistantLanguage}
+          onChange={setAssistantLanguage}
+          compact
+        />
+        <span className="text-[11px] text-stone-500 hidden sm:inline">
+          AI answers will be generated in this language
+        </span>
+      </div>
 
       {/* Multimodal Input Form */}
       <form
