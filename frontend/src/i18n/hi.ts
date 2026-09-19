@@ -3,6 +3,7 @@ import type { TranslationDictionary } from '../types/i18n.types';
 export const hi: TranslationDictionary = {
   appTitle: 'किसान सहायक',
   appSubtitle: 'भरोसेमंद डिजिटल कृषि परामर्श',
+  navOpen: 'खोलें',
   navHome: 'होम',
   navKhetSwasthya: 'खेत स्वास्थ्य',
   navFasalRog: 'फसल रोग',

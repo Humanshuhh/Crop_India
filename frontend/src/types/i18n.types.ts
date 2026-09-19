@@ -21,6 +21,7 @@ export interface TranslationDictionary {
   navLogout: string;
   navProfile: string;
   optionalTag: string;
+  navOpen: string;
 
   // Language & Voice
   languageSelectAria: string;

@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-stone-400 leading-relaxed">
-              {t('appSubtitle')}. Built for smallholder farmers with an unyielding commitment to data truth, accessibility, and zero fabricated metrics.
+              {t('appSubtitle')}. {t('footerBrandDesc')}
             </p>
           </div>
 
@@ -30,7 +30,7 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <ShieldCheck className="w-5 h-5 text-emerald-400" aria-hidden="true" />
               <h4 className="font-semibold text-stone-100 text-sm tracking-wide uppercase">
-                Data Transparency
+                {t('footerDataTransparency')}
               </h4>
             </div>
             <ul className="space-y-2 text-sm text-stone-400">
@@ -43,8 +43,8 @@ export const Footer: React.FC = () => {
                   <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               </li>
-              <li>No synthetic weather or simulated soil readings.</li>
-              <li>Separate AI guidance from empirical test card records.</li>
+              <li>{t('footerNoSyntheticData')}</li>
+              <li>{t('footerSeparateAI')}</li>
             </ul>
           </div>
 
@@ -53,32 +53,32 @@ export const Footer: React.FC = () => {
             <div className="flex items-center gap-2 mb-3">
               <HeartHandshake className="w-5 h-5 text-emerald-400" aria-hidden="true" />
               <h4 className="font-semibold text-stone-100 text-sm tracking-wide uppercase">
-                Advisory Charter
+                {t('footerAdvisoryCharter')}
               </h4>
             </div>
             <p className="text-xs text-stone-400 leading-relaxed bg-stone-800/60 p-3 rounded-lg border border-stone-800">
-              {t('aiDisclaimer')} For critical agrochemical or land decisions, verify with your district Krishi Vigyan Kendra (KVK).
+              {t('aiDisclaimer')} {t('footerKVKAdvice')}
             </p>
           </div>
         </div>
 
         <div className="pt-6 border-t border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-stone-500 gap-3">
-          <p>© {new Date().getFullYear()} Kisan Sahayak. Digital Public Good for Smallholders.</p>
+          <p>© {new Date().getFullYear()} {t('appTitle')}. {t('footerCopyright')}.</p>
           <div className="flex flex-wrap items-center gap-4">
             <Link to="/data-sources" className="hover:text-stone-300">
-              Methodology
+              {t('footerMethodology')}
             </Link>
             <Link to="/khet-swasthya" className="hover:text-stone-300">
-              Soil Advisory
+              {t('footerSoilAdvisory')}
             </Link>
             <Link to="/fasal-rog-pehchan" className="hover:text-stone-300">
-              Leaf Diagnostics
+              {t('footerLeafDiagnostics')}
             </Link>
             <Link to="/assistant" className="hover:text-stone-300">
-              Kisan Mitra
+              {t('navKisanMitra')}
             </Link>
             <Link to="/history" className="hover:text-stone-300">
-              History
+              {t('navHistory')}
             </Link>
           </div>
         </div>

@@ -3,6 +3,7 @@ import type { TranslationDictionary } from '../types/i18n.types';
 export const en: TranslationDictionary = {
   appTitle: 'Kisan Sahayak',
   appSubtitle: 'Trustworthy Digital Agricultural Intelligence',
+  navOpen: 'Open',
   navHome: 'Home',
   navKhetSwasthya: 'Farm Health',
   navFasalRog: 'Crop Disease',

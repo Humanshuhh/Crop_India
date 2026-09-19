@@ -42,14 +42,14 @@ export const Navbar: React.FC = () => {
     { to: '/', label: t('navHome'), icon: <Sprout className="w-4 h-4" /> },
     { to: '/khet-swasthya', label: t('navKhetSwasthya'), icon: <Layers className="w-4 h-4" /> },
     { to: '/fasal-rog-pehchan', label: t('navFasalRog'), icon: <Activity className="w-4 h-4" /> },
-    { to: '/assistant', label: 'Kisan Mitra', icon: <Bot className="w-4 h-4" /> },
+    { to: '/assistant', label: t('navKisanMitra'), icon: <Bot className="w-4 h-4" /> },
     {
       to: '/kisaan-telemetry',
       label: t('navTelemetry'),
       badge: t('optionalTag'),
       icon: <Activity className="w-4 h-4" />,
     },
-    { to: '/history', label: 'History', icon: <HistoryIcon className="w-4 h-4" /> },
+    { to: '/history', label: t('navHistory'), icon: <HistoryIcon className="w-4 h-4" /> },
     { to: '/data-sources', label: t('navDataSources'), icon: <FileText className="w-4 h-4" /> },
   ];
 
@@ -71,7 +71,7 @@ export const Navbar: React.FC = () => {
                 {t('appTitle')}
               </span>
               <span className="text-[11px] text-emerald-400 font-medium hidden sm:inline leading-none">
-                {currentLanguageMeta.code === 'hi' ? 'भरोसेमंद कृषि परामर्श' : 'Trustworthy Agro-Advisory'}
+                {t('appTagline')}
               </span>
             </div>
           </Link>
@@ -101,7 +101,6 @@ export const Navbar: React.FC = () => {
             ))}
           </nav>
 
-          {/* Right Header Controls: Language + Auth */}
           {/* Right Header Controls: Language + Auth */}
           <div className="hidden md:flex items-center gap-3">
             {/* Language Selector Dropdown */}
@@ -344,7 +343,7 @@ export const Navbar: React.FC = () => {
                       <div className="text-xs text-stone-400 truncate max-w-44">{user.email}</div>
                     </div>
                   </div>
-                  <span className="text-xs text-emerald-400 font-medium">Open &rarr;</span>
+                  <span className="text-xs text-emerald-400 font-medium">{t('navOpen')} &rarr;</span>
                 </Link>
                 <button
                   type="button"

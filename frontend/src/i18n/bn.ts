@@ -163,6 +163,86 @@ export const bn: TranslationDictionary = {
   welcomeContinueBtn: 'এগিয়ে যান',
   welcomeLoginBtn: 'অ্যাকাউন্টে লগ ইন করুন',
   welcomeSignupBtn: 'নতুন অ্যাকাউন্ট তৈরি করুন',
+  // Added keys for full coverage
+  navKisanMitra: 'কিষাণ মিত্র',
+  navHistory: 'ইতিহাস',
+  appTagline: 'সৎ ও নির্ভরযোগ্য কৃষি পরামর্শ',
+  footerBrandDesc: 'কৃষি তথ্যের জন্য আপনার বিশ্বস্ত সঙ্গী।',
+  footerDataTransparency: 'ডেটা স্বচ্ছতা',
+  footerNoSyntheticData: 'কোনো কৃত্রিম ডেটা নেই',
+  footerSeparateAI: 'AI থেকে আলাদা',
+  footerAdvisoryCharter: 'কৃষক পরামর্শ চার্টার',
+  footerKVKAdvice: 'KVK পরামর্শ',
+  footerCopyright: '© 2026 কিষাণ সহায়ক। সব অধিকার সংরক্ষিত।',
+  footerMethodology: 'পদ্ধতি',
+  footerSoilAdvisory: 'মাটির পরামর্শ',
+  footerLeafDiagnostics: 'পাতা রোগ নির্ণয়',
+  homeDigitalPublicGood: 'ডিজিটাল পাবলিক গুড',
+  homeAskKisanMitra: 'কিষাণ মিত্রকে জিজ্ঞাসা করুন',
+  homeCoreValuesSubtitle: 'আমাদের মূল মূল্যবোধ',
+  homeFeatureSubtitle: 'বৈশিষ্ট্য সমূহ',
+  homeBadgeLiveAdvisory: 'সরাসরি পরামর্শ',
+  homeKhetDesc: 'আপনার ক্ষেতের স্বাস্থ্য বিশ্লেষণ',
+  homeKhetFeature1: 'ফিচার ১',
+  homeKhetFeature2: 'ফিচার ২',
+  homeKhetFeature3: 'ফিচার ৩',
+  homeBadgeLeafAPI: 'পাতা রোগ API',
+  homeFasalDesc: 'ফসল রোগ নির্ণয় বর্ণনা',
+  homeFasalFeature1: 'ফিচার ১',
+  homeFasalFeature2: 'ফিচার ২',
+  homeFasalFeature3: 'ফিচার ৩',
+  homeKisanMitraTitle: 'কিষাণ মিত্র',
+  homeBadgeVoiceVision: 'শব্দ ও দৃষ্টিশক্তি',
+  homeKisanMitraDesc: 'কৃষকের জন্য কণ্ঠস্বর সহায়তা',
+  homeKisanMitraFeature1: 'ফিচার ১',
+  homeKisanMitraFeature2: 'ফিচার ২',
+  homeKisanMitraFeature3: 'ফিচার ৩',
+  homeBadgeTelemetry: 'টেলিমেট্রি',
+  homeTelemetryCardTitle: 'টেলিমেট্রি তথ্য',
+  homeTelemetryDesc: 'টেলিমেট্রি বর্ণনা',
+  homeTelemetryFeature1: 'ফিচার ১',
+  homeTelemetryFeature2: 'ফিচার ২',
+  homeTelemetryFeature3: 'ফিচার ৩',
+  homeInspectTelemetry: 'টেলিমেট্রি দেখুন',
+  homeBadgeHistory: 'ইতিহাস',
+  homeHistoryTitle: 'ইতিহাস পৃষ্ঠা',
+  homeHistoryDesc: 'ইতিহাস বর্ণনা',
+  homeHistoryFeature1: 'ফিচার ১',
+  homeHistoryFeature2: 'ফিচার ২',
+  homeHistoryFeature3: 'ফিচার ৩',
+  homeViewHistory: 'ইতিহাস দেখুন',
+  homeConsultKisanMitra: 'কিষাণ মিত্রের সঙ্গে পরামর্শ',
+  loginSubtitle: 'অ্যাকাউন্টে লগইন করুন',
+  loginEmailLabel: 'ইমেল ঠিকানা',
+  loginPasswordLabel: 'পাসওয়ার্ড',
+  loginVerifying: 'প্রমাণিত হচ্ছে...',
+  loginNoAccount: 'অ্যাকাউন্ট নেই?',
+  loginSignupHere: 'এখানে সাইন আপ করুন',
+  navOpen: 'নেভিগেশন খুলুন',
+  signupTitle: 'নতুন অ্যাকাউন্ট তৈরি করুন',
+  signupSubtitle: 'আপনার তথ্য দিয়ে সাইন আপ করুন',
+  signupEmailLabel: 'ইমেল ঠিকানা',
+  signupCreatePasswordLabel: 'পাসওয়ার্ড তৈরি করুন',
+  signupPasswordPlaceholder: 'কমপক্ষে ৬ অক্ষর',
+  signupConfirmPasswordLabel: 'পাসওয়ার্ড পুনরায় লিখুন',
+  signupConfirmPlaceholder: 'পাসওয়ার্ড নিশ্চিত করুন',
+  signupCreating: 'অ্যাকাউন্ট তৈরি হচ্ছে...',
+  signupCreateBtn: 'অ্যাকাউন্ট তৈরি করুন',
+  signupHaveAccount: 'ইতিমধ্যে একটি অ্যাকাউন্ট আছে?',
+  signupLoginHere: 'এখানে লগইন করুন',
+  
+  
+
+
+
+
+
+
+
+
+
+
+
 };
 
 
