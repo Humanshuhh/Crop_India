@@ -18,6 +18,8 @@ from backend.routers.voice import router as voice_router
 from backend.routers.early_warning import router as early_warning_router
 from backend.routers.farmer_assistant import router as assistant_router
 from backend.routers.telemetry import router as telemetry_router
+from backend.routers.auth import router as auth_router          # <-- Added auth router
+from backend.routers.admin import router as admin_router        # <-- Added admin router
 
 scheduler = AsyncIOScheduler()
 
@@ -71,6 +73,8 @@ app.include_router(voice_router)
 app.include_router(early_warning_router)
 app.include_router(assistant_router)
 app.include_router(telemetry_router)
+app.include_router(auth_router)           # <-- Mounted auth router
+app.include_router(admin_router)          # <-- Mounted admin router
 
 
 @app.get(
@@ -89,6 +93,9 @@ async def root() -> Dict[str, Any]:
             "documentation": "/docs",
             "redoc": "/redoc",
             "openapi_schema": "/openapi.json",
+            "auth_signup": "/api/v1/auth/signup",         # <-- Added
+            "auth_login": "/api/v1/auth/login",           # <-- Added
+            "admin_metrics": "/api/v1/admin/metrics",     # <-- Added
             "diagnose": "/api/v1/diagnose",
             "soil_evaluate": "/api/v1/soil/evaluate",
             "soil_regenerative_plan": "/api/v1/soil/regenerative-plan",

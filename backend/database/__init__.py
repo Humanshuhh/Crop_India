@@ -7,7 +7,9 @@ from .firestore_crud import (
     save_farmer_profile,
     save_soil_record,
     save_leaf_diagnostic,
-    save_early_warning_firestore
+    save_early_warning_firestore,   # <-- Added the missing comma here!
+    get_admin_profile,              
+    get_admin_dashboard_stats       
 )
 
 # Export BigQuery CRUD Operations (Analytics & Bulk Data)
@@ -31,5 +33,7 @@ __all__ = [
     "ingest_historical_weather",
     "ingest_bulk_shc",
     "log_warning_bigquery",
-    "sync_soil_records_to_bigquery"
+    "sync_soil_records_to_bigquery",
+    "get_admin_profile",          # <-- Added to __all__
+    "get_admin_dashboard_stats"   # <-- Added to __all__
 ]
