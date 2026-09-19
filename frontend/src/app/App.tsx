@@ -25,9 +25,19 @@ const ONBOARDING_KEY = 'kisan_onboarding_done';
  * Gates the Home route: first-time visitors are redirected to /welcome.
  * After onboarding is marked done, subsequent visits load Home directly.
  */
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 const HomeOrWelcome: React.FC = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onboardingDone = localStorage.getItem(ONBOARDING_KEY) === 'true';
+    if (!onboardingDone) {
+      navigate('/welcome', { replace: true });
+    }
+  }, [navigate]);
   const onboardingDone = localStorage.getItem(ONBOARDING_KEY) === 'true';
-  return onboardingDone ? <Home /> : <Navigate to="/welcome" replace />;
+  return onboardingDone ? <Home /> : null;
 };
 
 export const App: React.FC = () => {
