@@ -302,5 +302,36 @@ accessDenied: string;
   bottomNavKhet: string;
   bottomNavMitra: string;
   bottomNavHistory: string;
+
+  // Assistant page UI strings
+  assistantConnectedBadge: string;
+  assistantServiceUnavailableBadge: string;
+  assistantApiWiredBadge: string;
+  assistantSubHeader: string;
+  assistantDemoExitLabel: string;
+  assistantDemoInspectLabel: string;
+  assistantVoiceVisionReady: string;
+  assistantDemoNoticeTitle: string;
+  assistantDemoNoticeBody: string;
+  assistantEmptyStateTitle: string;
+  assistantEmptyStatePrompt: string;
+  assistantSuggestedQuestionsLabel: string;
+  assistantSuggestedQuestion1: string;
+  assistantSuggestedQuestion2: string;
+  assistantSuggestedQuestion3: string;
+  assistantSuggestedQuestion4: string;
+  assistantActionableStepsTitle: string;
+  assistantVerifiedSourcesTitle: string;
+  assistantRelatedTopicsTitle: string;
+  assistantListenAloud: string;
+  assistantStopSpeech: string;
+  assistantListeningState: string;
+  assistantSpokenWordsNote: string;
+  assistantDoneBtn: string;
+  assistantReadyToSend: string;
+  assistantPlaceholderListening: string;
+  assistantPlaceholderDefault: string;
+  assistantSendQueryBtn: string;
+  assistantConsultingEngine: string;
 }
 

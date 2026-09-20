@@ -19,6 +19,7 @@ import {
   ListOrdered,
   BookOpen,
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { queryFarmerAssistant } from '../services/assistant';
@@ -26,13 +27,6 @@ import type { AssistantMessage, FarmerAssistantResult } from '../types/assistant
 import type { NormalizedError } from '../types/api.types';
 import type { SupportedLanguage } from '../types/i18n.types';
 import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
-
-const SUGGESTED_QUESTIONS = [
-  'How to prepare fermented Jeevamrit at home?',
-  'What are the non-chemical remedies for yellow leaf spot?',
-  'Which green manure crop is best before sowing wheat?',
-  'How to protect crops during unexpected heavy rainfall?',
-];
 
 // Max file size: 10 MB
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -87,8 +81,9 @@ const DEMO_CONVERSATION: AssistantMessage[] = [
 ];
 
 export const FarmerAssistant: React.FC = () => {
-  const { language, currentLanguageMeta } = useLanguage();
+  const { language, currentLanguageMeta, t } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
+  const location = useLocation();
 
   const [assistantLanguage, setAssistantLanguage] = useState<SupportedLanguage>(language);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
@@ -104,11 +99,17 @@ export const FarmerAssistant: React.FC = () => {
   const [apiStatus, setApiStatus] = useState<'pending' | 'connected' | 'error'>('pending');
   const [showDemoPreview, setShowDemoPreview] = useState(false);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  // Reset nested scroll container on route change
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [location.pathname]);
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -367,20 +368,20 @@ export const FarmerAssistant: React.FC = () => {
               </h1>
               {apiStatus === 'connected' ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  Connected
+                  {t('assistantConnectedBadge')}
                 </span>
               ) : apiStatus === 'error' ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
-                  Service Unavailable
+                  {t('assistantServiceUnavailableBadge')}
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  API Wired
+                  {t('assistantApiWiredBadge')}
                 </span>
               )}
             </div>
             <p className="text-xs sm:text-sm text-stone-600">
-              Multimodal Agricultural & Soil Assistant
+              {t('assistantSubHeader')}
             </p>
           </div>
         </div>
@@ -395,20 +396,20 @@ export const FarmerAssistant: React.FC = () => {
                 ? 'bg-amber-100 border-amber-300 text-amber-950 shadow-2xs'
                 : 'bg-white border-stone-300 text-stone-700 hover:bg-stone-100'
             }`}
-            aria-label={showDemoPreview ? 'Exit UI Demo Preview' : 'Inspect Demo Response Layout'}
+            aria-label={showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
           >
             <Eye className="w-4 h-4 text-amber-700" />
             <span className="hidden sm:inline">
-              {showDemoPreview ? 'Exit Demo Preview' : 'Inspect Demo Response Layout'}
+              {showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
             </span>
             <span className="sm:hidden">
-              {showDemoPreview ? 'Exit Demo' : 'Demo Layout'}
+              {showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
             </span>
           </button>
 
           <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-stone-500 bg-stone-100 px-2.5 py-1.5 rounded-xl border border-stone-200">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Voice & Vision Ready</span>
+            <span>{t('assistantVoiceVisionReady')}</span>
           </span>
         </div>
       </div>
@@ -418,9 +419,9 @@ export const FarmerAssistant: React.FC = () => {
         <div className="mt-3 shrink-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs animate-fadeIn">
           <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <p className="font-bold">UI Design Preview Active (Demo Only)</p>
+            <p className="font-bold">{t('assistantDemoNoticeTitle')}</p>
             <p className="text-amber-900/90 leading-relaxed">
-              Demonstrating structured actionable field steps, agronomic source citations, and audio advisory playback. No fake backend API calls are made.
+              {t('assistantDemoNoticeBody')}
             </p>
           </div>
         </div>
@@ -445,10 +446,10 @@ export const FarmerAssistant: React.FC = () => {
           <div className="space-y-0.5">
             <p className="font-semibold">
               {apiStatus === 'connected'
-                ? 'Connected to Live AI Engine'
+                ? t('assistantConnectedBadge')
                 : apiStatus === 'error'
-                ? 'Backend Service Error'
-                : 'Connected to POST /api/v1/farmer/query'}
+                ? t('assistantServiceUnavailableBadge')
+                : t('assistantApiWiredBadge')}
             </p>
             <p className="leading-relaxed opacity-90">
               {serviceNotice || (
@@ -462,7 +463,7 @@ export const FarmerAssistant: React.FC = () => {
       )}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto py-6 space-y-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto py-6 space-y-6">
         {displayedMessages.length === 0 ? (
           /* Empty / Initial State with Agricultural Prompts */
           <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-6 max-w-lg mx-auto my-auto">
@@ -471,20 +472,25 @@ export const FarmerAssistant: React.FC = () => {
             </div>
             <div className="space-y-2">
               <h2 className="text-lg font-bold text-stone-900">
-                Ask Kisan Mitra
+                {t('assistantEmptyStateTitle')}
               </h2>
               <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                Type in your regional language, speak via microphone, or attach plant foliage photos for regenerative farming guidance.
+                {t('assistantEmptyStatePrompt')}
               </p>
             </div>
 
             {/* Quick Prompts */}
             <div className="w-full space-y-2 pt-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 block text-left">
-                Suggested Questions:
+                {t('assistantSuggestedQuestionsLabel')}:
               </span>
               <div className="grid grid-cols-1 gap-2">
-                {SUGGESTED_QUESTIONS.map((q, idx) => (
+                {[
+                  t('assistantSuggestedQuestion1'),
+                  t('assistantSuggestedQuestion2'),
+                  t('assistantSuggestedQuestion3'),
+                  t('assistantSuggestedQuestion4'),
+                ].map((q, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -544,7 +550,7 @@ export const FarmerAssistant: React.FC = () => {
                     <div className="pt-2 space-y-2">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 uppercase tracking-wider">
                         <ListOrdered className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span>Actionable Field Steps</span>
+                        <span>{t('assistantActionableStepsTitle')}</span>
                       </div>
                       <ol className="space-y-1.5 list-none">
                         {msg.actionableSteps.map((step, sIdx) => (
@@ -566,7 +572,7 @@ export const FarmerAssistant: React.FC = () => {
                   {!isUser && msg.sources && msg.sources.length > 0 && (
                     <div className="pt-2 border-t border-stone-100 space-y-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
-                        Verified Sources & References:
+                        {t('assistantVerifiedSourcesTitle')}:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.sources.map((src, srcIdx) => (
@@ -586,7 +592,7 @@ export const FarmerAssistant: React.FC = () => {
                   {!isUser && msg.relatedTopics && msg.relatedTopics.length > 0 && (
                     <div className="pt-2 border-t border-stone-100 space-y-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
-                        Related Follow-Up Questions:
+                        {t('assistantRelatedTopicsTitle')}:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.relatedTopics.map((topic, tIdx) => (
@@ -622,17 +628,17 @@ export const FarmerAssistant: React.FC = () => {
                           }
                         }}
                         className="min-h-[44px] inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/80 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        aria-label={isSpeakingThis ? 'Stop voice reading' : 'Listen to advisory spoken aloud'}
+                        aria-label={isSpeakingThis ? t('voiceStop') : t('voiceReadAloud')}
                       >
                         {isSpeakingThis ? (
                           <>
                             <Square className="w-4 h-4 fill-current text-rose-600 animate-pulse" />
-                            <span>Stop Speech</span>
+                            <span>{t('assistantStopSpeech')}</span>
                           </>
                         ) : (
                           <>
                             <Volume2 className="w-4 h-4 text-emerald-700" />
-                            <span>Listen Aloud</span>
+                            <span>{t('assistantListenAloud')}</span>
                           </>
                         )}
                       </button>
@@ -670,7 +676,7 @@ export const FarmerAssistant: React.FC = () => {
             </div>
             <div className="rounded-2xl p-4 bg-white border border-stone-200 text-stone-600 rounded-bl-xs flex items-center gap-2.5 shadow-2xs">
               <RotateCw className="w-4 h-4 animate-spin text-emerald-700" />
-              <span className="text-xs font-medium">Consulting Kisan Agro-Pathology Engine...</span>
+              <span className="text-xs font-medium">{t('assistantConsultingEngine')}</span>
             </div>
           </div>
         )}
@@ -724,13 +730,13 @@ export const FarmerAssistant: React.FC = () => {
             </span>
             <div className="text-xs">
               <p className="font-bold text-rose-950 flex items-center gap-1.5">
-                <span>Speech-to-Text Input</span>
+                <span>{t('assistantListeningState')}</span>
                 <span className="font-mono bg-rose-200/70 text-rose-950 px-1.5 py-0.2 rounded font-semibold">
                   {formatSeconds(recordingSeconds)}
                 </span>
               </p>
               <p className="text-rose-800">
-                Listening in {currentLanguageMeta?.name || 'regional language'} ({currentLanguageMeta?.code || 'hi-IN'})... Spoken words will appear in the text box for your review.
+                Listening in {currentLanguageMeta?.name || 'regional language'} ({currentLanguageMeta?.code || 'hi-IN'})... {t('assistantSpokenWordsNote')}
               </p>
             </div>
           </div>
@@ -739,17 +745,17 @@ export const FarmerAssistant: React.FC = () => {
               type="button"
               onClick={handleStopVoiceInput}
               className="min-h-[44px] px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-rose-500"
-              aria-label="Finish speaking and keep transcribed text"
+              aria-label={t('assistantDoneBtn')}
             >
-              Done
+              {t('assistantDoneBtn')}
             </button>
             <button
               type="button"
               onClick={handleCancelVoiceInput}
               className="min-h-[44px] px-3 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-700 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-stone-400"
-              aria-label="Cancel speech-to-text input"
+              aria-label={t('cancel')}
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -769,7 +775,7 @@ export const FarmerAssistant: React.FC = () => {
                 {selectedImage?.name || 'Attached Photo'}
               </p>
               <p className="text-stone-500">
-                {selectedImage ? formatFileSize(selectedImage.size) : ''} • Image Attached (Ready to Send)
+                {selectedImage ? formatFileSize(selectedImage.size) : ''} • {t('assistantReadyToSend')}
               </p>
             </div>
           </div>
@@ -777,8 +783,8 @@ export const FarmerAssistant: React.FC = () => {
             type="button"
             onClick={handleRemoveImage}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-xl hover:bg-stone-200 text-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-400"
-            aria-label="Remove attached image"
-            title="Remove image"
+            aria-label={t('removeImageBtn')}
+            title={t('removeImageBtn')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -789,13 +795,13 @@ export const FarmerAssistant: React.FC = () => {
       <div className="shrink-0 flex items-center justify-between pb-2 px-1">
         <ResultLanguageSelector
           id="assistant-response-language"
-          label="Response Language"
+          label={t('responseLanguage')}
           value={assistantLanguage}
           onChange={setAssistantLanguage}
           compact
         />
         <span className="text-[11px] text-stone-500 hidden sm:inline">
-          AI answers will be generated in this language
+          {t('responseLanguageHelper')}
         </span>
       </div>
 
@@ -830,8 +836,8 @@ export const FarmerAssistant: React.FC = () => {
             type="button"
             onClick={() => cameraInputRef.current?.click()}
             className="min-h-[44px] min-w-[44px] rounded-2xl text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            aria-label="Take crop photo with camera"
-            title="Take Photo"
+            aria-label={t('cameraBtn')}
+            title={t('cameraBtn')}
           >
             <Camera className="w-5 h-5" />
           </button>
@@ -841,8 +847,8 @@ export const FarmerAssistant: React.FC = () => {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="min-h-[44px] min-w-[44px] rounded-2xl text-stone-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            aria-label="Upload photo from gallery"
-            title="Upload Photo"
+            aria-label={t('uploadBtn')}
+            title={t('uploadBtn')}
           >
             <ImageIcon className="w-5 h-5" />
           </button>
@@ -856,8 +862,8 @@ export const FarmerAssistant: React.FC = () => {
                 ? 'bg-rose-600 text-white animate-pulse shadow-xs'
                 : 'text-stone-600 hover:text-emerald-700 hover:bg-emerald-50'
             }`}
-            aria-label={isRecording ? 'Stop speech recognition' : 'Speech-to-text input via microphone'}
-            title={isRecording ? 'Stop Speech Input' : 'Voice Input (Speech to Text)'}
+            aria-label={isRecording ? t('voiceStop') : t('voiceSpeaking')}
+            title={isRecording ? t('voiceStop') : t('voiceReadAloud')}
           >
             {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -872,8 +878,8 @@ export const FarmerAssistant: React.FC = () => {
             dir="auto"
             placeholder={
               isRecording
-                ? `Listening to speech (${recordingSeconds}s)... Spoken words will appear here...`
-                : 'Ask in Hindi, English, Marathi, Bengali, Tamil, Telugu... (Shift+Enter for newline)'
+                ? t('assistantPlaceholderListening')
+                : t('assistantPlaceholderDefault')
             }
             className="flex-1 min-w-0 min-h-[44px] max-h-36 py-2.5 px-3 text-sm sm:text-base text-stone-900 bg-transparent focus:outline-none resize-none leading-normal"
           />
@@ -883,8 +889,8 @@ export const FarmerAssistant: React.FC = () => {
             type="submit"
             disabled={(!inputText.trim() && !selectedImage) || isLoading}
             className="min-h-[44px] min-w-[44px] rounded-2xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 text-white flex items-center justify-center transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            aria-label="Send Query"
-            title="Send Query"
+            aria-label={t('assistantSendQueryBtn')}
+            title={t('assistantSendQueryBtn')}
           >
             <Send className="w-5 h-5" />
           </button>

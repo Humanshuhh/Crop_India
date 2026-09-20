@@ -47,8 +47,7 @@ const HomeOrWelcome: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-        <ScrollToTop />
-        <ScrollToTop />
+      <ScrollToTop />
       <AuthProvider>
         <LanguageProvider>
           <VoiceProvider>
