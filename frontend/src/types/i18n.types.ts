@@ -183,7 +183,13 @@ export interface TranslationDictionary {
   // Navbar — missing keys
   navKisanMitra: string;
   navHistory: string;
-  appTagline: string;
+appTagline: string;
+
+  adminNav: string;
+adminDashboardTitle: string;
+adminDashboardNoData: string;
+accessDenied: string;
+
 
   // Footer
   footerBrandDesc: string;
@@ -254,5 +260,36 @@ export interface TranslationDictionary {
   signupCreateBtn: string;
   signupHaveAccount: string;
   signupLoginHere: string;
+
+  // Phase 3 — Farmer-First Dashboard & Advisory UX
+  farmerGreeting: string;
+  farmerHelpQuestion: string;
+  farmContextTitle: string;
+  noFarmProfile: string;
+  setupFarmAction: string;
+  locationLabel: string;
+  activeAdvisoryTitle: string;
+  noActiveWarning: string;
+  actionFasalTitle: string;
+  actionFasalDesc: string;
+  actionKhetTitle: string;
+  actionKhetDesc: string;
+  actionMitraTitle: string;
+  actionMitraDesc: string;
+  actionTelemetryTitle: string;
+  actionTelemetryDesc: string;
+  recentActivityTitle: string;
+  noRecentActivity: string;
+  viewAllHistory: string;
+  supportHelp: string;
+  advisorySectionHeader: string;
+  advisoryImmediateAction: string;
+  advisoryWhyTitle: string;
+  advisoryTechnicalDetails: string;
+  bottomNavHome: string;
+  bottomNavFasal: string;
+  bottomNavKhet: string;
+  bottomNavMitra: string;
+  bottomNavHistory: string;
 }
 

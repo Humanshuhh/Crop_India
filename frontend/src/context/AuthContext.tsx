@@ -26,23 +26,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<'farmer' | 'admin' | null>(null);
+  const [roleLoading, setRoleLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Derive auth directly from Firebase listener
     const unsubscribe = onAuthStateChanged(
       auth,
-      (currentUser) => {
+      async (currentUser) => {
         setUser(currentUser);
         setLoading(false);
+        if (currentUser) {
+          // Fetch or create user role in Firestore
+          try {
+            const { doc, getDoc, setDoc } = await import('firebase/firestore');
+            const { db } = await import('../lib/firebase');
+            const userRef = doc(db, 'users', currentUser.uid);
+            const snap = await getDoc(userRef);
+            if (snap.exists()) {
+              const data = snap.data();
+              setRole(data.role as 'farmer' | 'admin');
+            } else {
+              // Create default profile with farmer role
+              await setDoc(userRef, { role: 'farmer' });
+              setRole('farmer');
+            }
+          } catch (e) {
+            console.error('[AuthProvider] Error fetching role:', e);
+            setRole(null);
+          } finally {
+            setRoleLoading(false);
+          }
+        } else {
+          setRole(null);
+          setRoleLoading(false);
+        }
       },
       (authErr) => {
         console.error('[Kisan Sahayak Auth] Firebase listener error:', authErr);
         const dict = getActiveDictionary();
         setError(dict.authNetworkFailed);
         setLoading(false);
+        setRole(null);
+        setRoleLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, []);
 
@@ -107,6 +134,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, pass);
+      // After successful signup, create Firestore profile with default role
+      const { setDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { role: 'farmer' });
+      }
     } catch (err) {
       const msg = formatAuthError(err);
       setError(msg);
@@ -134,6 +167,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         error,
+        role,
+        roleLoading,
         signInWithEmail,
         signUpWithEmail,
         signOutUser,

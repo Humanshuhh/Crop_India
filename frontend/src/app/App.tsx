@@ -5,6 +5,7 @@ import { LanguageProvider } from '../context/LanguageContext';
 import { VoiceProvider } from '../context/VoiceContext';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
+import { BottomNav } from '../components/layout/BottomNav';
 
 // Pages
 import { Home } from '../pages/Home';
@@ -18,6 +19,8 @@ import { Profile } from '../pages/Profile';
 import { FarmerAssistant } from '../pages/FarmerAssistant';
 import { History } from '../pages/History';
 import { Welcome } from '../pages/Welcome';
+import { AdminDashboard } from '../pages/AdminDashboard';
+import { RequireRole } from '../components/RequireRole';
 
 const ONBOARDING_KEY = 'kisan_onboarding_done';
 
@@ -48,7 +51,7 @@ export const App: React.FC = () => {
           <VoiceProvider>
             <div className="flex flex-col min-h-screen bg-stone-50 text-stone-900">
               <Navbar />
-              <main className="flex-1">
+              <main className="flex-1 pb-20 lg:pb-0">
                 <Routes>
                   <Route path="/" element={<HomeOrWelcome />} />
                   <Route path="/welcome" element={<Welcome />} />
@@ -61,10 +64,19 @@ export const App: React.FC = () => {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route
+                    path="/admin"
+                    element={
+                      <RequireRole requiredRole="admin">
+                        <AdminDashboard />
+                      </RequireRole>
+                    }
+                  />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </main>
               <Footer />
+              <BottomNav />
             </div>
           </VoiceProvider>
         </LanguageProvider>

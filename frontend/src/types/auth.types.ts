@@ -1,9 +1,13 @@
-﻿import type { User } from 'firebase/auth';
+import type { User } from 'firebase/auth';
+
+export type UserRole = "farmer" | "admin";
 
 export interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
+  role: UserRole | null;
+  roleLoading: boolean;
 }
 
 export interface AuthContextType extends AuthState {

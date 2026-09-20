@@ -20,7 +20,7 @@ import type { SupportedLanguage } from '../../types/i18n.types';
 
 export const Navbar: React.FC = () => {
   const { language, setLanguage, t, supportedLanguages, currentLanguageMeta } = useLanguage();
-  const { user, signOutUser } = useAuth();
+  const { user, signOutUser, role } = useAuth();
   const navigate = useNavigate();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -52,6 +52,12 @@ export const Navbar: React.FC = () => {
     { to: '/history', label: t('navHistory'), icon: <HistoryIcon className="w-4 h-4" /> },
     { to: '/data-sources', label: t('navDataSources'), icon: <FileText className="w-4 h-4" /> },
   ];
+
+  // Conditionally add Admin link only for users with admin role
+  if (role === 'admin') {
+    navLinks.push({ to: '/admin', label: t('adminNav'), icon: <Activity className="w-4 h-4" /> });
+  }
+
 
   return (
     <header className="sticky top-0 z-40 bg-stone-900 text-stone-100 border-b border-stone-800 shadow-md">

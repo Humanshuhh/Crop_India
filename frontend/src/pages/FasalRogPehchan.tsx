@@ -292,7 +292,7 @@ export const FasalRogPehchan: React.FC = () => {
             </div>
           )}
 
-          {/* Metrics Grid: Condition, Crop, Real Confidence Level */}
+          {/* 1. Diagnosis & Urgency Grid: Condition, Crop, Real Confidence Level */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl border border-stone-200 bg-stone-50">
               <span className="text-xs font-semibold text-stone-500 uppercase block mb-1">
@@ -330,56 +330,36 @@ export const FasalRogPehchan: React.FC = () => {
             </div>
           </div>
 
-          {/* Observed Visual Symptoms */}
-          {result.visual_symptoms && result.visual_symptoms.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-emerald-700" />
-                <span>{t('symptomsTitle')}</span>
-              </h3>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs sm:text-sm text-stone-700">
-                {result.visual_symptoms.map((symptom, idx) => (
-                  <li key={idx} className="p-3 rounded-lg bg-stone-50 border border-stone-200 flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 shrink-0"></span>
-                    <span>{symptom}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Underlying Cause */}
-          {result.underlying_cause && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-stone-500">
-                {t('causeTitle')}
-              </h3>
-              <p className="text-sm sm:text-base text-stone-800 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
-                {result.underlying_cause}
-              </p>
-            </div>
-          )}
-
-          {/* Eco-Friendly & Biological Remedies */}
+          {/* 2. Immediate Remedy & Application (Eco-Friendly & Biological) */}
           {result.eco_friendly_remedies && result.eco_friendly_remedies.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-700" />
-                <span>{t('ecoRemediesTitle')}</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-700" />
+                  <span>{t('ecoRemediesTitle')} (Immediate Action)</span>
+                </h3>
+                <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Organic & Safe
+                </span>
+              </div>
               <div className="grid grid-cols-1 gap-4">
                 {result.eco_friendly_remedies.map((remedy, idx) => (
                   <div
                     key={idx}
-                    className="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/50 space-y-3"
+                    className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/40 space-y-3 shadow-2xs"
                   >
                     <div className="font-bold text-base text-emerald-950 flex items-center justify-between">
-                      <span>{remedy.title}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-emerald-700 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span>{remedy.title}</span>
+                      </span>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
                         Non-Chemical
                       </span>
                     </div>
-                    <div className="text-xs sm:text-sm text-stone-700 space-y-1.5">
+                    <div className="text-xs sm:text-sm text-stone-700 pl-8 space-y-1.5">
                       <p>
                         <strong className="text-emerald-900">Preparation:</strong> {remedy.preparation}
                       </p>
@@ -393,7 +373,7 @@ export const FasalRogPehchan: React.FC = () => {
             </div>
           )}
 
-          {/* Cultural Prevention Practices */}
+          {/* 3. Cultural Prevention Practices */}
           {result.preventive_cultural_practices && result.preventive_cultural_practices.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
@@ -410,6 +390,37 @@ export const FasalRogPehchan: React.FC = () => {
               </ul>
             </div>
           )}
+
+          {/* 4. Observed Visual Symptoms (Supporting Diagnostics) */}
+          {result.visual_symptoms && result.visual_symptoms.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-stone-100">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-stone-500 flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-stone-500" />
+                <span>{t('symptomsTitle')}</span>
+              </h3>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs sm:text-sm text-stone-700">
+                {result.visual_symptoms.map((symptom, idx) => (
+                  <li key={idx} className="p-3 rounded-lg bg-stone-50 border border-stone-200 flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-2 shrink-0"></span>
+                    <span>{symptom}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 5. Underlying Pathogen & Cause (Scientific Etiology) */}
+          {result.underlying_cause && (
+            <div className="space-y-2 pt-2 border-t border-stone-100">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-stone-500">
+                {t('causeTitle')} (Pathogen Etiology)
+              </h3>
+              <p className="text-xs sm:text-sm text-stone-800 leading-relaxed bg-stone-50 p-4 rounded-xl border border-stone-200">
+                {result.underlying_cause}
+              </p>
+            </div>
+          )}
+
 
           {/* Spoken Summary with Sentence-level visual tracking */}
           {textToRead && (

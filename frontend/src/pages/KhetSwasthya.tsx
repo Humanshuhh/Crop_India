@@ -671,14 +671,148 @@ export const KhetSwasthya: React.FC = () => {
             </div>
           </div>
 
-          {/* Submitted Soil Data & Provenance Card (§2) */}
+          {/* 1. Soil Advisory / Condition & Summary */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-700" />
+                <span>Soil Condition & Advisory</span>
+              </h3>
+              {isVoiceReadingThisReport && !report.spoken_summary && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                  Reading Aloud
+                </span>
+              )}
+            </div>
+            <div className="text-base text-stone-800 leading-relaxed bg-emerald-50/50 p-5 rounded-2xl border border-emerald-200 shadow-2xs">
+              {isVoiceReadingThisReport ? (
+                <p>
+                  {reportSentences.map((sentence, idx) => (
+                    <span
+                      key={idx}
+                      className={`transition-all duration-150 ${
+                        currentSentenceIndex === idx
+                          ? 'bg-amber-200 text-stone-950 px-1 py-0.5 rounded-sm font-semibold shadow-2xs'
+                          : ''
+                      }`}
+                    >
+                      {sentence}{' '}
+                    </span>
+                  ))}
+                </p>
+              ) : (
+                <p className="font-medium text-stone-900">
+                  {report.soil_health_assessment || report.spoken_summary || ''}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Immediate Biological Action (Amendments) */}
+          {report.biological_amendments && report.biological_amendments.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                <Leaf className="w-5 h-5 text-emerald-700" />
+                <span>{t('biologicalAmendmentsTitle')} (Immediate Action)</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {report.biological_amendments.map((action, idx) => (
+                  <div
+                    key={idx}
+                    className="p-5 rounded-2xl border border-emerald-200 bg-white shadow-2xs hover:border-emerald-400 transition-colors space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm sm:text-base text-emerald-950 flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-emerald-700 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span>{action.name}</span>
+                      </span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Organic
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-semibold text-emerald-900 pl-8">
+                      Target Deficiency: {action.target_deficiency}
+                    </div>
+
+                    <div className="text-xs sm:text-sm text-stone-700 pl-8 space-y-1">
+                      <div>
+                        <strong className="text-stone-900">Preparation:</strong>{' '}
+                        {action.preparation_or_sourcing}
+                      </div>
+                      <div>
+                        <strong className="text-stone-900">Dosage & Application:</strong>{' '}
+                        {action.dosage_and_application}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Regenerative Crop Rotation Recommendations */}
+          {report.regenerative_crop_rotations && report.regenerative_crop_rotations.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                <RotateCw className="w-4 h-4 text-emerald-700" />
+                <span>{t('cropRotationTitle')} (Regenerative Cycle)</span>
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs sm:text-sm text-stone-700">
+                {report.regenerative_crop_rotations.map((rec, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl bg-stone-50 border border-stone-200 p-4 space-y-2 shadow-2xs"
+                  >
+                    <div className="font-bold text-stone-900 text-sm flex items-center justify-between border-b border-stone-200 pb-1.5">
+                      <span>{rec.season}</span>
+                      <span className="text-emerald-800 font-semibold">{rec.recommended_crop}</span>
+                    </div>
+
+                    <div className="text-xs text-stone-600">
+                      <span className="font-semibold text-stone-800">Role:</span> {rec.ecological_role}
+                    </div>
+
+                    <div className="text-xs text-stone-600">
+                      <span className="font-semibold text-stone-800">Water:</span> {rec.water_requirement}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 4. Why This Recommendation Exists & Cultural Practices */}
+          {report.cultural_water_practices && report.cultural_water_practices.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-stone-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-emerald-700" />
+                <span>Agronomic Rationale & Water Conservation</span>
+              </h3>
+              <ul className="space-y-1.5 text-xs sm:text-sm text-stone-700 bg-stone-50 p-4 rounded-xl border border-stone-200">
+                {report.cultural_water_practices.map((practice, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{practice}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 5. Technical Soil Parameters (Supporting & Secondary) */}
           {submittedData && (
-            <div className="rounded-2xl border border-stone-200 bg-stone-50/80 p-5 space-y-3">
+            <div className="rounded-2xl border border-stone-200 bg-stone-50/80 p-5 space-y-3 pt-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200/80 pb-3">
                 <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-stone-700">
-                    Submitted Soil Parameters & Origin
+                  <FileSpreadsheet className="w-4 h-4 text-stone-600" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                    Supporting Laboratory & Diagnostic Parameters
                   </span>
                 </div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-stone-300 text-stone-800 shadow-2xs">
@@ -732,146 +866,6 @@ export const KhetSwasthya: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Critical Degradation Alert */}
-          {false && (
-            <div
-              role="alert"
-              className="p-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 flex items-start gap-3"
-            >
-              <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" aria-hidden="true" />
-              <div className="space-y-1">
-                <h3 className="font-bold text-sm sm:text-base text-rose-950">
-                  Critical Soil Degradation Warning
-                </h3>
-                <p className="text-xs sm:text-sm text-rose-800 leading-relaxed">
-                  {t('criticallyDegradedWarning')}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Soil Health Summary with Sentence-level visual tracking (§7) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-stone-500">
-                Soil Condition & Summary
-              </h3>
-              {isVoiceReadingThisReport && !report.spoken_summary && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                  Reading Aloud
-                </span>
-              )}
-            </div>
-            <div className="text-base text-stone-800 leading-relaxed bg-stone-50 p-5 rounded-2xl border border-stone-200">
-  {isVoiceReadingThisReport ? (
-    <p>
-      {reportSentences.map((sentence, idx) => (
-        <span
-          key={idx}
-          className={`transition-all duration-150 ${
-            currentSentenceIndex === idx
-              ? 'bg-amber-200 text-stone-950 px-1 py-0.5 rounded-sm font-semibold shadow-2xs'
-              : ''
-          }`}
-        >
-          {sentence}{' '}
-        </span>
-      ))}
-    </p>
-  ) : (
-    <p>{report.soil_health_assessment || report.spoken_summary || ''}</p>
-  )}
-</div>
-          </div>
-
-          {/* Biological Amendments List */}
-{report.biological_amendments && report.biological_amendments.length > 0 && (
-  <div className="space-y-3">
-    <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
-      <Leaf className="w-5 h-5 text-emerald-700" />
-      <span>{t('biologicalAmendmentsTitle')}</span>
-    </h3>
-
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {report.biological_amendments.map((action, idx) => (
-        <div
-          key={idx}
-          className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/60 space-y-2"
-        >
-          <div className="font-bold text-sm text-emerald-950">
-            {action.name}
-          </div>
-
-          <div className="text-xs font-semibold text-emerald-800">
-            Target: {action.target_deficiency}
-          </div>
-
-          <div className="text-xs text-stone-700 leading-relaxed">
-            <span className="font-semibold">Preparation:</span>{' '}
-            {action.preparation_or_sourcing}
-          </div>
-
-          <div className="text-xs text-stone-700 leading-relaxed">
-            <span className="font-semibold">Dosage:</span>{' '}
-            {action.dosage_and_application}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-          {/* Crop Rotation & Sowing Window Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            {/* Rotation */}
-  {report.regenerative_crop_rotations &&
-    report.regenerative_crop_rotations.length > 0 && (
-      <div className="rounded-2xl border border-stone-200 p-5 bg-stone-50/80 space-y-3">
-        <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-          <RotateCw className="w-4 h-4 text-emerald-700" />
-          <span>{t('cropRotationTitle')}</span>
-        </h3>
-
-        <div className="space-y-3 text-xs sm:text-sm text-stone-700">
-          {report.regenerative_crop_rotations.map((rec, i) => (
-            <div
-              key={i}
-              className="rounded-xl bg-white border border-stone-200 p-3 space-y-1.5"
-            >
-              <div className="font-bold text-stone-900">
-                {rec.season}: {rec.recommended_crop}
-              </div>
-
-              <div>
-                <span className="font-semibold">Ecological role:</span>{' '}
-                {rec.ecological_role}
-              </div>
-
-              <div>
-                <span className="font-semibold">Water requirement:</span>{' '}
-                {rec.water_requirement}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-
-            {/* Sowing Advice */}
-            {false && (
-              <div className="rounded-2xl border border-stone-200 p-5 bg-stone-50/80 space-y-3">
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-700" />
-                  <span>{t('sowingWindowAdviceTitle')}</span>
-                </h3>
-                <p className="text-xs sm:text-sm text-stone-700 leading-relaxed">
-  Sowing window information is not currently available.
-</p>
-              </div>
-            )}
-          </div>
 
           {/* Spoken Script Box with Sentence-level visual tracking (§7) */}
           {report.spoken_summary && (

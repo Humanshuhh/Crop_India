@@ -169,6 +169,11 @@ export const hi: TranslationDictionary = {
   navKisanMitra: 'किसान मित्र',
   navHistory: 'इतिहास',
   appTagline: 'भरोसेमंद कृषि परामर्श',
+adminNav: "Admin",
+adminDashboardTitle: "Admin Dashboard",
+adminDashboardNoData: "No data available",
+accessDenied: "Access denied",
+
 
   // Footer
   footerBrandDesc: 'छोटे किसानों के लिए बनाया गया, डेटा सत्यता, सुलभता और शून्य काल्पनिक मेट्रिक्स के प्रति अटूट प्रतिबद्धता के साथ।',
@@ -239,5 +244,36 @@ export const hi: TranslationDictionary = {
   signupCreateBtn: 'खाता बनाएं',
   signupHaveAccount: 'पहले से खाता है?',
   signupLoginHere: 'यहाँ लॉगिन करें',
+
+  // Phase 3 — Farmer-First Dashboard & Advisory UX
+  farmerGreeting: 'नमस्ते, किसान साथी',
+  farmerHelpQuestion: 'आज आपको अपने खेत के लिए क्या सहायता चाहिए?',
+  farmContextTitle: 'आपके खेत का विवरण',
+  noFarmProfile: 'अभी तक कोई खेत प्रोफ़ाइल सहेजी नहीं गई है',
+  setupFarmAction: 'खेत प्रोफ़ाइल पूरी करें',
+  locationLabel: 'स्थान',
+  activeAdvisoryTitle: 'सक्रिय कृषि परामर्श',
+  noActiveWarning: 'इस समय कोई गंभीर चेतावनी नहीं है। सभी स्थितियां सामान्य हैं।',
+  actionFasalTitle: 'फसल रोग पहचान',
+  actionFasalDesc: 'पत्ते का फोटो अपलोड करें और तुरंत जैविक उपचार पाएं',
+  actionKhetTitle: 'खेत स्वास्थ्य परीक्षण',
+  actionKhetDesc: 'मिट्टी के नमूनों की जांच करें और जीवामृत योजना पाएं',
+  actionMitraTitle: 'किसान मित्र से पूछें',
+  actionMitraDesc: 'अपनी भाषा में बोलकर या लिखकर खेती से जुड़े सवाल पूछें',
+  actionTelemetryTitle: 'पूर्व चेतावनी एवं उपग्रह स्थिति',
+  actionTelemetryDesc: 'कृषि जलवायु क्षेत्र और वनस्पति सूचकांक की स्थिति देखें',
+  recentActivityTitle: 'हाल की कृषि गतिविधि',
+  noRecentActivity: 'अभी तक कोई परीक्षण दर्ज नहीं है। अपना रिकॉर्ड शुरू करने के लिए मिट्टी या पत्ते की जांच करें।',
+  viewAllHistory: 'सभी रिकॉर्ड देखें',
+  supportHelp: 'मदद चाहिए? किसान कॉल सेंटर: 1800-180-1551 (टोल फ्री) या अपने जिले के केवीके (KVK) से संपर्क करें',
+  advisorySectionHeader: 'कृषि परामर्श एवं संस्तुतियां',
+  advisoryImmediateAction: 'अनुशंसित कार्रवाई (क्या करें)',
+  advisoryWhyTitle: 'वैज्ञानिक कारण (यह सिफारिश क्यों)',
+  advisoryTechnicalDetails: 'सहायक तकनीकी एवं नैदानिक डेटा',
+  bottomNavHome: 'होम',
+  bottomNavFasal: 'फसल रोग',
+  bottomNavKhet: 'खेत स्वास्थ्य',
+  bottomNavMitra: 'किसान मित्र',
+  bottomNavHistory: 'इतिहास',
 };
 
