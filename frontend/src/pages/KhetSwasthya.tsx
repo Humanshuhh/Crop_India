@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import {
   MapPin,
   FileSpreadsheet,
-  AlertTriangle,
   Leaf,
   CloudSun,
   Satellite,
-  Calendar,
+  Sparkles,
+  HelpCircle,
   Layers,
   RotateCw,
   Info,
