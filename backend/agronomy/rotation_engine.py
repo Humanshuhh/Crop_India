@@ -19,7 +19,7 @@ class RegenerativeRotationEngine:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
-        self.model_name = "gemini-2.5-flash"
+        self.model_name = "gemini-3.6-flash"
 
     def _clean_and_parse_json(self, raw_text: str) -> dict:
         """Strips markdown formatting, code block fences, and extracts JSON content."""
