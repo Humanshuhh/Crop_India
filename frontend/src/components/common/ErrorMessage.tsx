@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import type { NormalizedError } from '../../types/api.types';
 import { useLanguage } from '../../context/LanguageContext';
@@ -28,9 +28,9 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({ error, onRetry, clas
           <div className="flex items-center justify-between gap-2 mb-1">
             <h4 className="font-semibold text-sm text-rose-950">
               {category === 'VALIDATION_ERROR'
-                ? 'Check Input Information'
+                ? t('validationErrorTitle')
                 : category === 'BACKEND_UNREACHABLE'
-                ? 'Service Temporarily Offline'
+                ? t('serviceOfflineTitle')
                 : t('error')}
             </h4>
           </div>

@@ -37,6 +37,17 @@ export interface TranslationDictionary {
   submit: string;
   cancel: string;
   retry: string;
+  // New keys for error categories and UI strings
+  validationErrorTitle: string;
+  serviceOfflineTitle: string;
+  // New UI strings for language selectors and messages
+  diagnosisResultLanguage: string;
+  diagnosisResultHelper: string;
+  responseLanguage: string;
+  responseLanguageHelper: string;
+  locationTimeout: string;
+  selectPhotoPrompt: string;
+  fileTooLarge: string;
   pendingIntegrationTitle: string;
   pendingIntegrationSubtitle: string;
   sourceAttribution: string;

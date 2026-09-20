@@ -215,10 +215,10 @@ export const FasalRogPehchan: React.FC = () => {
             <div className="w-full sm:max-w-xs">
               <ResultLanguageSelector
                 id="diagnosis-result-language"
-                label="Diagnosis Result Language"
+                label={t('diagnosisResultLanguage')}
                 value={diagnosisLanguage}
                 onChange={setDiagnosisLanguage}
-                helperText="AI pathology report will be generated in this language"
+                helperText={t('diagnosisResultHelper')}
               />
             </div>
 

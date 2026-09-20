@@ -6,6 +6,7 @@ import { VoiceProvider } from '../context/VoiceContext';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { BottomNav } from '../components/layout/BottomNav';
+import { ScrollToTop } from '../components/utility/ScrollToTop';
 
 // Pages
 import { Home } from '../pages/Home';
@@ -46,6 +47,8 @@ const HomeOrWelcome: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
+        <ScrollToTop />
+        <ScrollToTop />
       <AuthProvider>
         <LanguageProvider>
           <VoiceProvider>

@@ -274,5 +274,15 @@ accessDenied: "Access denied",
   bottomNavKhet: 'Soil Health',
   bottomNavMitra: 'Kisan Mitra',
   bottomNavHistory: 'Records',
+  // New UI strings for localization
+  validationErrorTitle: 'Check Input Information',
+  serviceOfflineTitle: 'Service Temporarily Offline',
+  diagnosisResultLanguage: 'Diagnosis Result Language',
+  diagnosisResultHelper: 'AI pathology report will be generated in this language',
+  responseLanguage: 'Response Language',
+  responseLanguageHelper: 'AI answers will be generated in this language',
+  locationTimeout: 'Location request timed out. Please try again.',
+  selectPhotoPrompt: 'Please select or take a photo of an affected crop leaf first.',
+  fileTooLarge: 'This photo is too large (max 10 MB). Try taking a new photo or choosing a smaller one.',
 };
 
