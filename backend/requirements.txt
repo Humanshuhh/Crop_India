@@ -20,3 +20,5 @@ httpx>=0.27.0
 #email validator
 email-validator
 apscheduler
+# Add this for the database
+firebase-admin>=6.5.0
