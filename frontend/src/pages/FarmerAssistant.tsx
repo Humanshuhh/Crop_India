@@ -81,7 +81,7 @@ const DEMO_CONVERSATION: AssistantMessage[] = [
 ];
 
 export const FarmerAssistant: React.FC = () => {
-  const { language, currentLanguageMeta, t } = useLanguage();
+  const { language, t } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
   const location = useLocation();
 
@@ -544,6 +544,7 @@ export const FarmerAssistant: React.FC = () => {
                   <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
                     {msg.text}
                   </p>
+  
 
                   {/* Formatted Actionable Field Steps (if provided) */}
                   {!isUser && msg.actionableSteps && msg.actionableSteps.length > 0 && (
@@ -736,7 +737,7 @@ export const FarmerAssistant: React.FC = () => {
                 </span>
               </p>
               <p className="text-rose-800">
-                Listening in {currentLanguageMeta?.name || 'regional language'} ({currentLanguageMeta?.code || 'hi-IN'})... {t('assistantSpokenWordsNote')}
+
               </p>
             </div>
           </div>
