@@ -17,3 +17,8 @@ google-cloud-bigquery
 apscheduler
 # Async HTTP Client (Required for Open-Meteo weather telemetry calls)
 httpx>=0.27.0
+#email validator
+email-validator
+apscheduler
+# Add this for the database
+firebase-admin>=6.5.0

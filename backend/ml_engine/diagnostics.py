@@ -1,7 +1,10 @@
-﻿import json
+﻿import io
+import json
 import logging
 import os
+import time
 from typing import List, Optional
+from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -47,7 +50,12 @@ class PlantDiagnosticsEngine:
     def __init__(self):
         self.api_key = resolve_api_key()
         self.client = genai.Client(api_key=self.api_key) if self.api_key else None
-        self.candidate_models = ["gemini-3.6-flash","gemini-3.7-flash"]
+        # Primary high-throughput production models with fallback tiers
+        self.candidate_models = [
+            "gemini-3.6-flash",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash"
+        ]
 
     def diagnose_leaf_image(
         self,
@@ -101,35 +109,57 @@ class PlantDiagnosticsEngine:
         )
 
         last_error = None
+        max_attempts_per_model = 2
+        retry_delay_seconds = 3
+
         for model_name in self.candidate_models:
-            try:
-                response = self.client.models.generate_content(
-                    model=model_name,
-                    contents=[
-                        types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                        prompt,
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.2,
-                        response_mime_type="application/json",
-                        response_schema=LeafDiagnosisResult,
-                        tools=[],
-                    ),
-                )
-                return LeafDiagnosisResult(**json.loads(response.text.strip()))
-            except Exception as exc:
-                last_error = exc
-                logger.warning(f"Diagnosis failed using {model_name}: {exc}")
-                continue
+            for attempt in range(max_attempts_per_model):
+                try:
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=[
+                            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                            prompt,
+                        ],
+                        config=types.GenerateContentConfig(
+                            temperature=0.2,
+                            response_mime_type="application/json",
+                            response_schema=LeafDiagnosisResult,
+                            tools=[],
+                        ),
+                    )
+                    return LeafDiagnosisResult(**json.loads(response.text.strip()))
+
+                except Exception as exc:
+                    last_error = exc
+                    err_msg = str(exc).lower()
+
+                    is_transient = (
+                        "503" in err_msg
+                        or "429" in err_msg
+                        or "unavailable" in err_msg
+                        or "high demand" in err_msg
+                        or "resource_exhausted" in err_msg
+                        or "overloaded" in err_msg
+                    )
+
+                    if is_transient and attempt < max_attempts_per_model - 1:
+                        logger.warning(
+                            f"Model {model_name} is experiencing high demand (Attempt {attempt + 1}/{max_attempts_per_model}). "
+                            f"Retrying after {retry_delay_seconds} seconds..."
+                        )
+                        time.sleep(retry_delay_seconds)
+                        continue
+
+                    logger.warning(f"Candidate {model_name} failed: {exc}")
+                    break  # Proceed to the next fallback candidate model
 
         raise RuntimeError(f"All diagnostic candidate models failed. Last error: {last_error}")
 
-import io
-from PIL import Image, ImageOps
 
 def preprocess_image(image_bytes: bytes, max_dim: int = 1024, quality: int = 85) -> bytes:
     """
-    Resizes the image to a maximum dimension of max_dim x max_dim (preserving aspect ratio)
+    Resizes the image to a maximum dimension of max_dim x max_dim 
     and compresses it as JPEG to minimize API latency and token cost.
     """
     with Image.open(io.BytesIO(image_bytes)) as img:
@@ -147,5 +177,7 @@ def preprocess_image(image_bytes: bytes, max_dim: int = 1024, quality: int = 85)
         output_buffer = io.BytesIO()
         img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
         return output_buffer.getvalue()
-# Crucial: instantiate engine for imports
+
+
+# Instantiate engine for direct router import
 plant_diagnostics_engine = PlantDiagnosticsEngine()
