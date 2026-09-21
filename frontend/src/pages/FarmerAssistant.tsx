@@ -103,18 +103,14 @@ export const FarmerAssistant: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
   // Reset nested scroll container on route change
   useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
   }, [location.pathname]);
-
-  // Auto-scroll to latest message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, showDemoPreview]);
 
   // Handle Speech Recognition setup
   useEffect(() => {
@@ -682,7 +678,6 @@ export const FarmerAssistant: React.FC = () => {
           </div>
         )}
 
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Mic Warning Banner */}
