@@ -1,0 +1,378 @@
+export type SupportedLanguage = 'en' | 'hi' | 'bn' | 'te' | 'ta' | 'mr';
+
+export interface LanguageOption {
+  code: SupportedLanguage;
+  name: string;
+  nativeName: string;
+  voiceLangCode: string;
+}
+
+export interface TranslationDictionary {
+  // Navigation & Common
+  appTitle: string;
+  appSubtitle: string;
+  navHome: string;
+  navKhetSwasthya: string;
+  navFasalRog: string;
+  navTelemetry: string;
+  navDataSources: string;
+  navLogin: string;
+  navSignup: string;
+  navLogout: string;
+  navProfile: string;
+  optionalTag: string;
+  navOpen: string;
+
+  // Language & Voice
+  languageSelectAria: string;
+  voiceReadAloud: string;
+  voiceStop: string;
+  voiceSpeaking: string;
+  voiceNotAvailable: string;
+  aiEnglishOnlyNotice: string;
+
+  // Status & Actions
+  loading: string;
+  error: string;
+  submit: string;
+  cancel: string;
+  retry: string;
+  // New keys for error categories and UI strings
+  validationErrorTitle: string;
+  serviceOfflineTitle: string;
+  // New UI strings for language selectors and messages
+  diagnosisResultLanguage: string;
+  diagnosisResultHelper: string;
+  responseLanguage: string;
+  responseLanguageHelper: string;
+  locationTimeout: string;
+  selectPhotoPrompt: string;
+  fileTooLarge: string;
+  pendingIntegrationTitle: string;
+  pendingIntegrationSubtitle: string;
+  sourceAttribution: string;
+  lastUpdated: string;
+  aiDisclaimer: string;
+
+  // Home Page
+  heroTitle: string;
+  heroTagline: string;
+  heroDescription: string;
+  heroCtaKhet: string;
+  heroCtaFasal: string;
+  coreValuesTitle: string;
+  zeroFakeDataTitle: string;
+  zeroFakeDataDesc: string;
+  accessibilityTitle: string;
+  accessibilityDesc: string;
+  transparencyTitle: string;
+  transparencyDesc: string;
+  exploreFeaturesTitle: string;
+
+  // Khet Swasthya Page
+  khetTitle: string;
+  khetSubtitle: string;
+  locationSectionTitle: string;
+  locationHelp: string;
+  useMyLocationBtn: string;
+  locationFetching: string;
+  latitudeLabel: string;
+  longitudeLabel: string;
+  shcSectionTitle: string;
+  shcHelp: string;
+  phLabel: string;
+  socLabel: string;
+  nLabel: string;
+  pLabel: string;
+  kLabel: string;
+  znLabel: string;
+  evaluateSoilBtn: string;
+  evaluatingSoil: string;
+  weatherSectionTitle: string;
+  weatherPendingDesc: string;
+  ndviSectionTitle: string;
+  ndviPendingDesc: string;
+  soilResultTitle: string;
+  criticallyDegradedWarning: string;
+  zoneLabel: string;
+  biologicalAmendmentsTitle: string;
+  cropRotationTitle: string;
+  sowingWindowAdviceTitle: string;
+  spokenAdvisoryTitle: string;
+
+  // Fasal Rog Pehchan Page
+  fasalTitle: string;
+  fasalSubtitle: string;
+  uploadSectionTitle: string;
+  uploadHelp: string;
+  cameraBtn: string;
+  uploadBtn: string;
+  dragDropText: string;
+  fileLimitText: string;
+  imagePreviewTitle: string;
+  removeImageBtn: string;
+  diagnoseBtn: string;
+  diagnosingProgress: string;
+  diagnosisPendingNote: string;
+  diagnosisResultTitle: string;
+  plantDetected: string;
+  noPlantDetected: string;
+  conditionLabel: string;
+  confidenceLabel: string;
+  symptomsTitle: string;
+  causeTitle: string;
+  ecoRemediesTitle: string;
+  culturalPracticesTitle: string;
+  spokenSummaryTitle: string;
+
+  // Kisaan Telemetry Page
+  telemetryTitle: string;
+  telemetrySubtitle: string;
+  telemetryPendingBadge: string;
+  telemetryPendingDesc: string;
+  agroClimaticMapTitle: string;
+  sentinelNdviMapTitle: string;
+
+  // Data Sources Page
+  dataSourcesTitle: string;
+  dataSourcesSubtitle: string;
+  integratedSourcesTitle: string;
+  pendingSourcesTitle: string;
+  dsStatusConnected: string;
+  dsStatusPending: string;
+  dsPartialGisCoverageNote: string;
+  dsSentinelEstimatedNote: string;
+  aiGovernanceTitle: string;
+  aiGovernanceNotice: string;
+
+  // Profile / My Farm Page
+  profileTitle: string;
+  profileSubtitle: string;
+  farmerInfoTitle: string;
+  fullNameLabel: string;
+  phoneLabel: string;
+  emailLabel: string;
+  farmerIdLabel: string;
+  farmLocationTitle: string;
+  villageLabel: string;
+  districtLabel: string;
+  stateLabel: string;
+  farmDetailsTitle: string;
+  landAreaLabel: string;
+  landUnitLabel: string;
+  primaryCropsLabel: string;
+  agroClimaticZoneTitle: string;
+  agroClimaticZonePending: string;
+  recordsSectionTitle: string;
+  recordsPendingNote: string;
+  profileHistoryStatusBadge: string;
+  editProfileBtn: string;
+  saveProfileBtn: string;
+  profileSavedNotice: string;
+  profileLoginPrompt: string;
+  profileLoginBtn: string;
+
+  // Authentication & Validation
+  authEmailInUse: string;
+  authInvalidEmail: string;
+  authWeakPassword: string;
+  authInvalidCredential: string;
+  authUserNotFound: string;
+  authWrongPassword: string;
+  authTooManyRequests: string;
+  authNetworkFailed: string;
+  authOperationNotAllowed: string;
+  authConfigError: string;
+  authGenericError: string;
+  authPasswordMismatch: string;
+  authPasswordLength: string;
+  showPassword: string;
+  hidePassword: string;
+  // Onboarding / Welcome Screen
+  welcomeGreeting: string;
+  welcomeSubtitle: string;
+  welcomeSelectLanguage: string;
+  welcomeContinueBtn: string;
+  welcomeLoginBtn: string;
+  welcomeSignupBtn: string;
+
+  // Navbar — missing keys
+  navKisanMitra: string;
+  navHistory: string;
+appTagline: string;
+
+  adminNav: string;
+adminDashboardTitle: string;
+adminDashboardNoData: string;
+accessDenied: string;
+
+
+  // Footer
+  footerBrandDesc: string;
+  footerDataTransparency: string;
+  footerNoSyntheticData: string;
+  footerSeparateAI: string;
+  footerAdvisoryCharter: string;
+  footerKVKAdvice: string;
+  footerCopyright: string;
+  footerMethodology: string;
+  footerSoilAdvisory: string;
+  footerLeafDiagnostics: string;
+
+  // Home page — hardcoded strings
+  homeDigitalPublicGood: string;
+  homeAskKisanMitra: string;
+  homeCoreValuesSubtitle: string;
+  homeFeatureSubtitle: string;
+  homeBadgeLiveAdvisory: string;
+  homeKhetDesc: string;
+  homeKhetFeature1: string;
+  homeKhetFeature2: string;
+  homeKhetFeature3: string;
+  homeBadgeLeafAPI: string;
+  homeFasalDesc: string;
+  homeFasalFeature1: string;
+  homeFasalFeature2: string;
+  homeFasalFeature3: string;
+  homeKisanMitraTitle: string;
+  homeBadgeVoiceVision: string;
+  homeKisanMitraDesc: string;
+  homeKisanMitraFeature1: string;
+  homeKisanMitraFeature2: string;
+  homeKisanMitraFeature3: string;
+  homeBadgeTelemetry: string;
+  homeTelemetryCardTitle: string;
+  homeTelemetryDesc: string;
+  homeTelemetryFeature1: string;
+  homeTelemetryFeature2: string;
+  homeTelemetryFeature3: string;
+  homeInspectTelemetry: string;
+  homeBadgeHistory: string;
+  homeHistoryTitle: string;
+  homeHistoryDesc: string;
+  homeHistoryFeature1: string;
+  homeHistoryFeature2: string;
+  homeHistoryFeature3: string;
+  homeViewHistory: string;
+  homeConsultKisanMitra: string;
+
+  // Login page
+  loginSubtitle: string;
+  loginEmailLabel: string;
+  loginPasswordLabel: string;
+  loginVerifying: string;
+  loginNoAccount: string;
+  loginSignupHere: string;
+
+  // Signup page
+  signupTitle: string;
+  signupSubtitle: string;
+  signupEmailLabel: string;
+  signupCreatePasswordLabel: string;
+  signupPasswordPlaceholder: string;
+  signupConfirmPasswordLabel: string;
+  signupConfirmPlaceholder: string;
+  signupCreating: string;
+  signupCreateBtn: string;
+  signupHaveAccount: string;
+  signupLoginHere: string;
+
+  // Phase 3 — Farmer-First Dashboard & Advisory UX
+  farmerGreeting: string;
+  farmerHelpQuestion: string;
+  farmContextTitle: string;
+  noFarmProfile: string;
+  setupFarmAction: string;
+  locationLabel: string;
+  activeAdvisoryTitle: string;
+  noActiveWarning: string;
+  actionFasalTitle: string;
+  actionFasalDesc: string;
+  actionKhetTitle: string;
+  actionKhetDesc: string;
+  actionMitraTitle: string;
+  actionMitraDesc: string;
+  actionTelemetryTitle: string;
+  actionTelemetryDesc: string;
+  recentActivityTitle: string;
+  noRecentActivity: string;
+  viewAllHistory: string;
+  supportHelp: string;
+  advisorySectionHeader: string;
+  advisoryImmediateAction: string;
+  advisoryWhyTitle: string;
+  advisoryTechnicalDetails: string;
+  bottomNavHome: string;
+  bottomNavFasal: string;
+  bottomNavKhet: string;
+  bottomNavMitra: string;
+  bottomNavHistory: string;
+  bottomNavTelemetry: string;
+
+  // Assistant page UI strings
+  assistantConnectedBadge: string;
+  assistantServiceUnavailableBadge: string;
+  assistantApiWiredBadge: string;
+  assistantSubHeader: string;
+  assistantDemoExitLabel: string;
+  assistantDemoInspectLabel: string;
+  assistantVoiceVisionReady: string;
+  assistantDemoNoticeTitle: string;
+  assistantDemoNoticeBody: string;
+  assistantEmptyStateTitle: string;
+  assistantEmptyStatePrompt: string;
+  assistantSuggestedQuestionsLabel: string;
+  assistantSuggestedQuestion1: string;
+  assistantSuggestedQuestion2: string;
+  assistantSuggestedQuestion3: string;
+  assistantSuggestedQuestion4: string;
+  assistantActionableStepsTitle: string;
+  assistantVerifiedSourcesTitle: string;
+  assistantRelatedTopicsTitle: string;
+  assistantListenAloud: string;
+  assistantStopSpeech: string;
+  assistantListeningState: string;
+  assistantSpokenWordsNote: string;
+  assistantDoneBtn: string;
+  assistantReadyToSend: string;
+  assistantPlaceholderListening: string;
+  assistantPlaceholderDefault: string;
+  assistantSendQueryBtn: string;
+  assistantConsultingEngine: string;
+
+  // Telemetry integration
+  telemetryNoLocationTitle: string;
+  telemetryNoLocationDesc: string;
+  telemetrySetupProfileBtn: string;
+  telemetryLoadingAlerts: string;
+  telemetryLoadingSentinel: string;
+  telemetryConnectedBadge: string;
+  telemetryFeedPendingBadge: string;
+  telemetryAlertsCount: string;
+  telemetryNoAlertsTitle: string;
+  telemetryNoAlertsDesc: string;
+  telemetryAlertSeverity: string;
+  telemetryAlertConfidence: string;
+  telemetryAlertDetectedAt: string;
+  telemetryAlertActions: string;
+  telemetryAlertSpokenAdvisory: string;
+  telemetryVegetationEstimatedLabel: string;
+  telemetryVegetationEstimatedNote: string;
+  telemetryNdviLabel: string;
+  telemetryNdwiLabel: string;
+  telemetryCanopyLabel: string;
+  telemetryFetchError: string;
+  telemetryAgroLoading: string;
+  telemetryAgroConnectedTitle: string;
+  telemetryAgroConnectedSub: string;
+  telemetryAgroPolygonsPrefix: string;
+  telemetryAgroOperationalPrefix: string;
+  telemetryAgroOperationalSuffix: string;
+  telemetryAgroEmptyDesc: string;
+  telemetryPipelineSuccessPrefix: string;
+  telemetryPipelineSuccessMid: string;
+  telemetryPipelineSuccessSuffix: string;
+  telemetryEarlyWarningTitle: string;
+  telemetryEarlyWarningDesc: string;
+}
+
