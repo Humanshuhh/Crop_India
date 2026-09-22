@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import {
   Camera,
   Upload,
@@ -34,19 +34,24 @@ export const FasalRogPehchan: React.FC = () => {
   const selectedFile = cropCache.selectedFile;
   const imagePreviewUrl = cropCache.imagePreviewUrl;
   const result = cropCache.result;
+  const isDiagnosing = cropCache.status === 'loading';
+  const error = cropCache.error;
+
+  const setCropCacheProp = <K extends keyof typeof cropCache>(key: K, val: typeof cropCache[K]) => 
+    setCropCache(p => ({ ...p, [key]: val }));
 
   const setSelectedFile = (val: React.SetStateAction<File | null>) => setCropCache(p => ({ ...p, selectedFile: typeof val === 'function' ? (val as any)(p.selectedFile) : val }));
   const setImagePreviewUrl = (val: React.SetStateAction<string | null>) => setCropCache(p => ({ ...p, imagePreviewUrl: typeof val === 'function' ? (val as any)(p.imagePreviewUrl) : val }));
   const setResult = (val: React.SetStateAction<CropDiagnosisResponse | null>) => setCropCache(p => ({ ...p, result: typeof val === 'function' ? (val as any)(p.result) : val }));
-
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [error, setError] = useState<NormalizedError | null>(null);
+  const setError = (val: NormalizedError | null) => setCropCacheProp('error', val);
+  const setStatus = (val: 'idle' | 'loading' | 'success' | 'error') => setCropCacheProp('status', val);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (file: File | undefined) => {
     setError(null);
+    setStatus('idle');
     if (!file) return;
 
     // Validate size per Addendum §6
@@ -55,6 +60,7 @@ export const FasalRogPehchan: React.FC = () => {
         category: 'VALIDATION_ERROR',
         userMessage: 'This photo is too large (max 10MB). Try taking a new photo or choosing a smaller one.',
       });
+      setStatus('error');
       return;
     }
 
@@ -71,6 +77,7 @@ export const FasalRogPehchan: React.FC = () => {
     }
     setResult(null);
     setError(null);
+    setStatus('idle');
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
@@ -82,22 +89,24 @@ export const FasalRogPehchan: React.FC = () => {
         category: 'VALIDATION_ERROR',
         userMessage: 'Please select or take a photo of an affected crop leaf first.',
       });
+      setStatus('error');
       return;
     }
+    
+    // Prevent double submission
+    if (isDiagnosing) return;
 
-    setIsDiagnosing(true);
+    setStatus('loading');
     setError(null);
 
     try {
       const diagnosis = await diagnoseCrop(selectedFile, language);
-      setResult(diagnosis);
+      setCropCache(p => ({ ...p, result: diagnosis, status: 'success', error: null }));
       setTimeout(() => {
         document.getElementById('diagnosis-result-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err) {
-      setError(err as NormalizedError);
-    } finally {
-      setIsDiagnosing(false);
+      setCropCache(p => ({ ...p, status: 'error', error: err as NormalizedError }));
     }
   };
 

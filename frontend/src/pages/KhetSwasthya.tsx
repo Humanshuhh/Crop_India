@@ -22,7 +22,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useVoice } from '../context/VoiceContext';
 import { evaluateSoil } from '../services/soil';
-import type { SoilHealthInput, RegenerativeAdvisoryResponse } from '../types/soil.types';
+import type { SoilHealthInput } from '../types/soil.types';
 import type { NormalizedError } from '../types/api.types';
 import { VoiceReaderButton } from '../components/common/VoiceReaderButton';
 import { ErrorMessage } from '../components/common/ErrorMessage';
@@ -45,15 +45,18 @@ export const KhetSwasthya: React.FC = () => {
   const setCoords = (val: React.SetStateAction<{ latitude: string; longitude: string }>) => setSoilCache(p => ({ ...p, coords: typeof val === 'function' ? (val as any)(p.coords) : val }));
   const setInputOrigin = (val: React.SetStateAction<'OFFICIAL_SHC' | 'FARMER_ESTIMATE'>) => setSoilCache(p => ({ ...p, inputOrigin: typeof val === 'function' ? (val as any)(p.inputOrigin) : val }));
   const setShcValues = (val: React.SetStateAction<{ ph: string; soc: string; n: string; p: string; k: string; zn: string; }>) => setSoilCache(p => ({ ...p, shcValues: typeof val === 'function' ? (val as any)(p.shcValues) : val }));
-  const setReport = (val: React.SetStateAction<RegenerativeAdvisoryResponse | null>) => setSoilCache(p => ({ ...p, report: typeof val === 'function' ? (val as any)(p.report) : val }));
-  const setSubmittedData = (val: React.SetStateAction<any>) => setSoilCache(p => ({ ...p, submittedData: typeof val === 'function' ? (val as any)(p.submittedData) : val }));
 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Submission and error states
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<NormalizedError | null>(null);
+  const isSubmitting = soilCache.status === 'loading';
+  const error = soilCache.error;
+
+  const setSoilCacheProp = <K extends keyof typeof soilCache>(key: K, val: typeof soilCache[K]) => 
+    setSoilCache(p => ({ ...p, [key]: val }));
+
+  const setError = (val: NormalizedError | null) => setSoilCacheProp('error', val);
+  const setStatus = (val: 'idle' | 'loading' | 'success' | 'error') => setSoilCacheProp('status', val);
 
   // GPS Device Location Handler
   const handleDetectLocation = () => {
@@ -90,6 +93,8 @@ export const KhetSwasthya: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError(null);
 
     const lat = parseFloat(coords.latitude);
@@ -100,6 +105,7 @@ export const KhetSwasthya: React.FC = () => {
         category: 'VALIDATION_ERROR',
         userMessage: 'Please enter a valid latitude between -90 and 90.',
       });
+      setStatus('error');
       return;
     }
 
@@ -108,6 +114,7 @@ export const KhetSwasthya: React.FC = () => {
         category: 'VALIDATION_ERROR',
         userMessage: 'Please enter a valid longitude between -180 and 180.',
       });
+      setStatus('error');
       return;
     }
 
@@ -123,22 +130,25 @@ export const KhetSwasthya: React.FC = () => {
       target_language: language,
     };
 
-    setIsSubmitting(true);
+    setStatus('loading');
     try {
       const res = await evaluateSoil(payload, language);
-      setReport(res);
-      setSubmittedData({
-        provenance: inputOrigin,
-        coords: { ...coords },
-        values: { ...shcValues },
-      });
+      setSoilCache(p => ({
+        ...p,
+        report: res,
+        submittedData: {
+          provenance: inputOrigin,
+          coords: { ...coords },
+          values: { ...shcValues },
+        },
+        status: 'success',
+        error: null
+      }));
       setTimeout(() => {
         document.getElementById('soil-report-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err) {
-      setError(err as NormalizedError);
-    } finally {
-      setIsSubmitting(false);
+      setSoilCache(p => ({ ...p, status: 'error', error: err as NormalizedError }));
     }
   };
 
