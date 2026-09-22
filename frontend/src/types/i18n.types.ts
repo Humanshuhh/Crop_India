@@ -138,6 +138,10 @@ export interface TranslationDictionary {
   dataSourcesSubtitle: string;
   integratedSourcesTitle: string;
   pendingSourcesTitle: string;
+  dsStatusConnected: string;
+  dsStatusPending: string;
+  dsPartialGisCoverageNote: string;
+  dsSentinelEstimatedNote: string;
   aiGovernanceTitle: string;
   aiGovernanceNotice: string;
 
