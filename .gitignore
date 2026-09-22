@@ -69,7 +69,8 @@ __marimo__/
 .streamlit/secrets.toml
 # Ignore Database Secret Credentials
 backend/database/credentials/*
-*.json
+# Generated/local telemetry
+field_telemetry.json
 #during database connection
 # Ignore Python bytecode and cached compiled files
 __pycache__/
