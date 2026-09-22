@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, HTTPException, status
 from backend.schemas.auth_schemas import LoginRequest, LoginResponse
 from backend.schemas.Farmer_schemas import FarmerSchema
@@ -13,6 +14,11 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 @router.post("/signup", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def farmer_signup(farmer_data: FarmerSchema):
     """Registers a new farmer into the system."""
+    
+    # --- NEW: Auto-generate unique ID if frontend does not provide one ---
+    if not farmer_data.farmer_id:
+        farmer_data.farmer_id = f"FARM_{uuid.uuid4().hex[:8].upper()}"
+
     db = get_firestore_db()
     if not db:
         raise HTTPException(

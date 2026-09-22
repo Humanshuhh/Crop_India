@@ -3,7 +3,7 @@ from typing import Optional, List
 
 # Schema for Farmer Profile
 class FarmerSchema(BaseModel):
-    farmer_id: str = Field(..., description="Unique ID for the farmer")
+    farmer_id: Optional[str] = Field(default=None, description="Unique ID for the farmer")
     name: str
     phone: str
     state: str
@@ -12,7 +12,7 @@ class FarmerSchema(BaseModel):
 
 # Schema for Field / Land Details
 class FieldSchema(BaseModel):
-    field_id: str
+    field_id: Optional[str] = Field(default=None, description="Unique ID for the field")
     farmer_id: str
     area_acres: float
     soil_type: Optional[str] = None
@@ -20,7 +20,7 @@ class FieldSchema(BaseModel):
 
 # Schema for Crop Diagnosis Entry
 class DiagnosisRecordSchema(BaseModel):
-    diagnosis_id: str
+    diagnosis_id: Optional[str] = Field(default=None, description="Unique ID for the diagnosis record")
     farmer_id: str
     image_url: str
     disease_detected: str
