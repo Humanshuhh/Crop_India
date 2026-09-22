@@ -25,8 +25,7 @@ import { useVoice } from '../context/VoiceContext';
 import { queryFarmerAssistant } from '../services/assistant';
 import type { AssistantMessage, FarmerAssistantResult } from '../types/assistant.types';
 import type { NormalizedError } from '../types/api.types';
-import type { SupportedLanguage } from '../types/i18n.types';
-import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
+
 
 // Max file size: 10 MB
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -80,16 +79,28 @@ const DEMO_CONVERSATION: AssistantMessage[] = [
   },
 ];
 
+import { useResultCache } from '../context/ResultCacheContext';
+
 export const FarmerAssistant: React.FC = () => {
   const { language, t } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
   const location = useLocation();
+  const { assistantCache, setAssistantCache } = useResultCache();
 
-  const [assistantLanguage, setAssistantLanguage] = useState<SupportedLanguage>(language);
-  const [messages, setMessages] = useState<AssistantMessage[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+
+  const messages = assistantCache.messages;
+  const inputText = assistantCache.inputText;
+  const selectedImage = assistantCache.selectedImage;
+  const imagePreviewUrl = assistantCache.imagePreviewUrl;
+  const showDemoPreview = assistantCache.showDemoPreview;
+
+  const setMessages = (val: React.SetStateAction<AssistantMessage[]>) => setAssistantCache(p => ({ ...p, messages: typeof val === 'function' ? (val as any)(p.messages) : val }));
+  const setInputText = (val: React.SetStateAction<string>) => setAssistantCache(p => ({ ...p, inputText: typeof val === 'function' ? (val as any)(p.inputText) : val }));
+  const setSelectedImage = (val: React.SetStateAction<File | null>) => setAssistantCache(p => ({ ...p, selectedImage: typeof val === 'function' ? (val as any)(p.selectedImage) : val }));
+  const setImagePreviewUrl = (val: React.SetStateAction<string | null>) => setAssistantCache(p => ({ ...p, imagePreviewUrl: typeof val === 'function' ? (val as any)(p.imagePreviewUrl) : val }));
+  const setShowDemoPreview = (val: React.SetStateAction<boolean>) => setAssistantCache(p => ({ ...p, showDemoPreview: typeof val === 'function' ? (val as any)(p.showDemoPreview) : val }));
+
   const [imageError, setImageError] = useState<string | null>(null);
   const [micNotice, setMicNotice] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -97,7 +108,6 @@ export const FarmerAssistant: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [serviceNotice, setServiceNotice] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'pending' | 'connected' | 'error'>('pending');
-  const [showDemoPreview, setShowDemoPreview] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -311,7 +321,7 @@ export const FarmerAssistant: React.FC = () => {
     try {
       const result: FarmerAssistantResult = await queryFarmerAssistant({
         query_text: query,
-        target_language: assistantLanguage,
+        target_language: language,
         image_file: imageToSubmit || undefined,
       });
 
@@ -786,20 +796,6 @@ export const FarmerAssistant: React.FC = () => {
           </button>
         </div>
       )}
-
-      {/* Response Language Control */}
-      <div className="shrink-0 flex items-center justify-between pb-2 px-1">
-        <ResultLanguageSelector
-          id="assistant-response-language"
-          label={t('responseLanguage')}
-          value={assistantLanguage}
-          onChange={setAssistantLanguage}
-          compact
-        />
-        <span className="text-[11px] text-stone-500 hidden sm:inline">
-          {t('responseLanguageHelper')}
-        </span>
-      </div>
 
       {/* Multimodal Input Form */}
       <form

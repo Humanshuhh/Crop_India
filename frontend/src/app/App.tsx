@@ -7,6 +7,7 @@ import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ScrollToTop } from '../components/utility/ScrollToTop';
+import { ResultCacheProvider } from '../context/ResultCacheContext';
 
 // Pages
 import { Home } from '../pages/Home';
@@ -51,35 +52,37 @@ export const App: React.FC = () => {
       <AuthProvider>
         <LanguageProvider>
           <VoiceProvider>
-            <div className="flex flex-col min-h-screen bg-stone-50 text-stone-900">
-              <Navbar />
-              <main className="flex-1 pb-20 lg:pb-0">
-                <Routes>
-                  <Route path="/" element={<HomeOrWelcome />} />
-                  <Route path="/welcome" element={<Welcome />} />
-                  <Route path="/khet-swasthya" element={<KhetSwasthya />} />
-                  <Route path="/fasal-rog-pehchan" element={<FasalRogPehchan />} />
-                  <Route path="/assistant" element={<FarmerAssistant />} />
-                  <Route path="/kisaan-telemetry" element={<KisaanTelemetry />} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/data-sources" element={<DataSources />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route
-                    path="/admin"
-                    element={
-                      <RequireRole requiredRole="admin">
-                        <AdminDashboard />
-                      </RequireRole>
-                    }
-                  />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </main>
-              <Footer />
-              <BottomNav />
-            </div>
+            <ResultCacheProvider>
+              <div className="flex flex-col min-h-screen bg-stone-50 text-stone-900">
+                <Navbar />
+                <main className="flex-1 pb-20 lg:pb-0">
+                  <Routes>
+                    <Route path="/" element={<HomeOrWelcome />} />
+                    <Route path="/welcome" element={<Welcome />} />
+                    <Route path="/khet-swasthya" element={<KhetSwasthya />} />
+                    <Route path="/fasal-rog-pehchan" element={<FasalRogPehchan />} />
+                    <Route path="/assistant" element={<FarmerAssistant />} />
+                    <Route path="/kisaan-telemetry" element={<KisaanTelemetry />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/data-sources" element={<DataSources />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route
+                      path="/admin"
+                      element={
+                        <RequireRole requiredRole="admin">
+                          <AdminDashboard />
+                        </RequireRole>
+                      }
+                    />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </main>
+                <Footer />
+                <BottomNav />
+              </div>
+            </ResultCacheProvider>
           </VoiceProvider>
         </LanguageProvider>
       </AuthProvider>

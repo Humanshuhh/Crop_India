@@ -333,5 +333,30 @@ accessDenied: string;
   assistantPlaceholderDefault: string;
   assistantSendQueryBtn: string;
   assistantConsultingEngine: string;
+
+  // Telemetry integration
+  telemetryNoLocationTitle: string;
+  telemetryNoLocationDesc: string;
+  telemetrySetupProfileBtn: string;
+  telemetryLoadingAlerts: string;
+  telemetryLoadingSentinel: string;
+  telemetryConnectedBadge: string;
+  telemetryFeedPendingBadge: string;
+  telemetryAlertsCount: string;
+  telemetryNoAlertsTitle: string;
+  telemetryNoAlertsDesc: string;
+  telemetryAlertSeverity: string;
+  telemetryAlertConfidence: string;
+  telemetryAlertDetectedAt: string;
+  telemetryAlertActions: string;
+  telemetryAlertSpokenAdvisory: string;
+  telemetryVegetationEstimatedLabel: string;
+  telemetryVegetationEstimatedNote: string;
+  telemetryNdviLabel: string;
+  telemetryNdwiLabel: string;
+  telemetryCanopyLabel: string;
+  telemetryFetchError: string;
+  telemetryEarlyWarningTitle: string;
+  telemetryEarlyWarningDesc: string;
 }
 

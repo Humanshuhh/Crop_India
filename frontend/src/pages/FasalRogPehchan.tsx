@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Camera,
   Upload,
@@ -18,26 +18,29 @@ import { useVoice } from '../context/VoiceContext';
 import { diagnoseCrop, MAX_IMAGE_SIZE_BYTES } from '../services/diagnosis';
 import type { CropDiagnosisResponse } from '../types/diagnosis.types';
 import type { NormalizedError } from '../types/api.types';
-import type { SupportedLanguage } from '../types/i18n.types';
 import { VoiceReaderButton } from '../components/common/VoiceReaderButton';
 import { ErrorMessage } from '../components/common/ErrorMessage';
-import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
+
+
+import { useResultCache } from '../context/ResultCacheContext';
 
 export const FasalRogPehchan: React.FC = () => {
   const { t, language } = useLanguage();
-  const { isSpeaking, activeContentId, currentSentenceIndex, clearVoiceNotice } = useVoice();
+  const { isSpeaking, activeContentId, currentSentenceIndex } = useVoice();
+  const { cropCache, setCropCache } = useResultCache();
 
-  const [diagnosisLanguage, setDiagnosisLanguage] = useState<SupportedLanguage>(language);
 
-  // Clear any voice-unavailable notices immediately when diagnosis result language changes
-  useEffect(() => {
-    clearVoiceNotice();
-  }, [diagnosisLanguage, clearVoiceNotice]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+  const selectedFile = cropCache.selectedFile;
+  const imagePreviewUrl = cropCache.imagePreviewUrl;
+  const result = cropCache.result;
+
+  const setSelectedFile = (val: React.SetStateAction<File | null>) => setCropCache(p => ({ ...p, selectedFile: typeof val === 'function' ? (val as any)(p.selectedFile) : val }));
+  const setImagePreviewUrl = (val: React.SetStateAction<string | null>) => setCropCache(p => ({ ...p, imagePreviewUrl: typeof val === 'function' ? (val as any)(p.imagePreviewUrl) : val }));
+  const setResult = (val: React.SetStateAction<CropDiagnosisResponse | null>) => setCropCache(p => ({ ...p, result: typeof val === 'function' ? (val as any)(p.result) : val }));
+
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [error, setError] = useState<NormalizedError | null>(null);
-  const [result, setResult] = useState<CropDiagnosisResponse | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +89,7 @@ export const FasalRogPehchan: React.FC = () => {
     setError(null);
 
     try {
-      const diagnosis = await diagnoseCrop(selectedFile, diagnosisLanguage);
+      const diagnosis = await diagnoseCrop(selectedFile, language);
       setResult(diagnosis);
       setTimeout(() => {
         document.getElementById('diagnosis-result-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -213,13 +216,7 @@ export const FasalRogPehchan: React.FC = () => {
         {imagePreviewUrl && (
           <div className="pt-2 space-y-4">
             <div className="w-full sm:max-w-xs">
-              <ResultLanguageSelector
-                id="diagnosis-result-language"
-                label={t('diagnosisResultLanguage')}
-                value={diagnosisLanguage}
-                onChange={setDiagnosisLanguage}
-                helperText={t('diagnosisResultHelper')}
-              />
+
             </div>
 
             <button
@@ -269,7 +266,7 @@ export const FasalRogPehchan: React.FC = () => {
                 contentId="crop-diagnosis-report"
                 sentences={diagnosisSentences}
                 label={t('voiceReadAloud')}
-                language={diagnosisLanguage}
+                language={language}
               />
             </div>
           </div>

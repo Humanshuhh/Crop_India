@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -10,24 +10,30 @@ import {
   Eye,
   Volume2,
   Square,
-  Activity,
   ListOrdered,
-  Satellite,
 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import { useVoice } from '../../context/VoiceContext';
-import type { EarlyWarningAdvisory, RiskLevel } from '../../types/earlyWarning.types';
+import { fetchEarlyWarningAlerts } from '../../services/telemetry';
+import type { LiveAlertEntry } from '../../types/telemetry.types';
+import type { FarmerProfile } from '../../types/profile.types';
+
+type RiskLevel = 'HIGH' | 'MODERATE' | 'LOW' | 'CRITICAL' | string;
+
+export interface EarlyWarningViewProps {
+  profile: FarmerProfile | null;
+}
 
 /**
  * Clearly labeled demo-only preview alerts for UI verification.
  * These strictly conform to the actual backend EarlyWarningAdvisory response model.
  */
-const DEMO_PREVIEW_ADVISORIES: EarlyWarningAdvisory[] = [
+const DEMO_PREVIEW_ADVISORIES: LiveAlertEntry[] = [
   {
-    warning_id: 'warn_demo_01',
-    risk_level: 'HIGH',
-    anomaly_detected: true,
-    predicted_stress_type: 'Incipient Fungal Spore Proliferation (Pre-Symptomatic Blight)',
-    confidence_score: 0.88,
+    id: 'warn_demo_01',
+    severity: 'HIGH',
+    type: 'Incipient Fungal Spore Proliferation (Pre-Symptomatic Blight)',
+    confidence: 0.88,
     proactive_actions: [
       'Apply prophylactic spray of fermented sour buttermilk (Chaach) diluted 1:10 with water.',
       'Foliar spray of Pseudomonas fluorescens (20g/liter) during early morning hours.',
@@ -35,14 +41,13 @@ const DEMO_PREVIEW_ADVISORIES: EarlyWarningAdvisory[] = [
     ],
     spoken_advisory:
       'किसान भाई, उपग्रह डेटा के अनुसार आपके खेत में नमी अधिक होने से फफूंद लगने का खतरा है। पत्तों पर लक्षण दिखने से पहले ही खट्टी छाछ या स्यूडोमोनास का छिड़काव करें।',
-    timestamp: new Date().toISOString(),
+    detected_at: new Date().toISOString(),
   },
   {
-    warning_id: 'warn_demo_02',
-    risk_level: 'MODERATE',
-    anomaly_detected: true,
-    predicted_stress_type: 'Soil Moisture Stress / Canopy Dehydration',
-    confidence_score: 0.82,
+    id: 'warn_demo_02',
+    severity: 'MODERATE',
+    type: 'Soil Moisture Stress / Canopy Dehydration',
+    confidence: 0.82,
     proactive_actions: [
       'Apply straw or crop residue mulch to preserve residual root moisture.',
       'Administer light evening irrigation; avoid daytime peak heat.',
@@ -50,33 +55,52 @@ const DEMO_PREVIEW_ADVISORIES: EarlyWarningAdvisory[] = [
     ],
     spoken_advisory:
       'किसान भाई, उपग्रह डेटा से पता चला है कि खेत की नमी तेजी से घट रही है। फसल को सूखने से बचाने के लिए पुआल की मल्चिंग करें और शाम को हल्की सिंचाई दें।',
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    detected_at: new Date(Date.now() - 86400000).toISOString(),
   },
   {
-    warning_id: 'warn_demo_03',
-    risk_level: 'LOW',
-    anomaly_detected: false,
-    predicted_stress_type: null,
-    confidence_score: 0.95,
+    id: 'warn_demo_03',
+    severity: 'LOW',
+    type: 'Normal Vitality',
+    confidence: 0.95,
     proactive_actions: [
       'Crop vitality index is normal. Continue planned organic maintenance.',
     ],
     spoken_advisory:
       'फसल का स्वास्थ्य सामान्य है। कोई पूर्व चेतावनी आवश्यक नहीं है।',
-    timestamp: new Date(Date.now() - 172800000).toISOString(),
+    detected_at: new Date(Date.now() - 172800000).toISOString(),
   },
 ];
 
-export const EarlyWarningView: React.FC = () => {
+export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) => {
+  const { t } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
 
   // Active state
-  const [advisories] = useState<EarlyWarningAdvisory[]>([]);
+  const [advisories, setAdvisories] = useState<LiveAlertEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'HIGH' | 'MODERATE' | 'LOW'>('ALL');
   const [showDemoPreview, setShowDemoPreview] = useState(false);
   const [expandedWarningId, setExpandedWarningId] = useState<string | null>('warn_demo_01');
 
-  // The client currently has no satellite/weather ingestion stream, so real telemetry is not available
+  useEffect(() => {
+    if (profile?.latitude && profile?.longitude && !showDemoPreview) {
+      setIsLoading(true);
+      setErrorMsg(null);
+      fetchEarlyWarningAlerts(Number(profile.latitude), Number(profile.longitude))
+        .then(res => {
+          if (res.active_alerts) {
+            setAdvisories(res.active_alerts);
+          }
+        })
+        .catch(err => {
+          setErrorMsg(err.userMessage || 'Failed to load early warning alerts.');
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [profile?.latitude, profile?.longitude, showDemoPreview]);
+
   const hasRealTelemetry = advisories.length > 0;
 
   const displayedAdvisories = showDemoPreview ? DEMO_PREVIEW_ADVISORIES : advisories;
@@ -84,7 +108,7 @@ export const EarlyWarningView: React.FC = () => {
   const filteredAdvisories =
     activeFilter === 'ALL'
       ? displayedAdvisories
-      : displayedAdvisories.filter((a) => a.risk_level === activeFilter);
+      : displayedAdvisories.filter((a) => a.severity === activeFilter);
 
   const getRiskBadgeStyles = (level: RiskLevel) => {
     switch (level) {
@@ -180,73 +204,68 @@ export const EarlyWarningView: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-stone-500 font-medium">
-            Endpoint: <code className="font-mono bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">POST /api/v1/early-warning/evaluate-risk</code>
+            Endpoint: <code className="font-mono bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">GET /api/v1/early-warning/alerts</code>
           </span>
         </div>
       </div>
 
-      {/* Honest "Awaiting Telemetry Ingestion" State (when not in demo preview and no live telemetry series exists) */}
+      {/* Loading, Error, or Missing Location State */}
       {!showDemoPreview && !hasRealTelemetry && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-6 sm:p-8 space-y-5 shadow-2xs">
-          <div className="flex items-start gap-3.5">
-            <span className="p-2.5 rounded-2xl bg-amber-100 text-amber-900 shrink-0">
-              <Clock className="w-6 h-6" />
-            </span>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
+          {!profile?.latitude ? (
+            <div className="flex items-start gap-3.5">
+              <span className="p-2.5 rounded-2xl bg-amber-100 text-amber-900 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </span>
+              <div className="space-y-1.5">
                 <h4 className="font-bold text-sm sm:text-base text-amber-950">
-                  Awaiting Telemetry Ingestion
+                  {t('telemetryNoLocationTitle')}
                 </h4>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-950">
-                  Service Ready
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-2xl">
-                The predictive early warning endpoint (<code className="font-mono bg-amber-100/80 px-1 py-0.5 rounded font-semibold">POST /api/v1/early-warning/evaluate-risk</code>) evaluates rolling spectral and atmospheric time-series to detect pre-symptomatic crop stress.
-              </p>
-            </div>
-          </div>
-
-          {/* Missing Data Requirements Card */}
-          <div className="rounded-xl border border-amber-200 bg-white/80 p-4 space-y-3 text-xs">
-            <div className="flex items-center gap-2 font-bold text-amber-950">
-              <Activity className="w-4 h-4 text-amber-700" />
-              <span>Required Inputs Awaiting Ingestion Pipeline:</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-stone-700">
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <Satellite className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-stone-900 block">Sentinel-2 Spectral Indices</span>
-                  <span className="text-stone-500 text-[11px]">Real NDVI (Vigor) & NDWI (Moisture)</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <Activity className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-stone-900 block">Weather Time-Series</span>
-                  <span className="text-stone-500 text-[11px]">Temperature (°C), Relative Humidity (%), Rainfall (mm)</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-stone-900 block">Historical Baseline</span>
-                  <span className="text-stone-500 text-[11px]">Farm baseline NDVI (default 0.65)</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-stone-50 border border-stone-200">
-                <ShieldCheck className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-stone-900 block">Geospatial Boundaries</span>
-                  <span className="text-stone-500 text-[11px]">Verified latitude & longitude coordinates</span>
-                </div>
+                <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-2xl">
+                  {t('telemetryNoLocationDesc')}
+                </p>
               </div>
             </div>
-            <p className="text-[11px] text-amber-900/80 italic pt-1 border-t border-amber-100">
-              Per our zero-fabricated-data policy, placeholder telemetry values are not transmitted. Live evaluations will execute automatically once backend telemetry workers supply real feeds.
-            </p>
-          </div>
+          ) : isLoading ? (
+            <div className="flex items-start gap-3.5">
+              <span className="p-2.5 rounded-2xl bg-amber-100 text-amber-900 shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </span>
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-sm sm:text-base text-amber-950">
+                  {t('telemetryLoadingAlerts')}
+                </h4>
+              </div>
+            </div>
+          ) : errorMsg ? (
+            <div className="flex items-start gap-3.5">
+              <span className="p-2.5 rounded-2xl bg-red-100 text-red-900 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </span>
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-sm sm:text-base text-red-950">
+                  {t('telemetryFetchError')}
+                </h4>
+                <p className="text-xs sm:text-sm text-red-900/90 leading-relaxed max-w-2xl">
+                  {errorMsg}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3.5">
+              <span className="p-2.5 rounded-2xl bg-amber-100 text-amber-900 shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </span>
+              <div className="space-y-1.5">
+                <h4 className="font-bold text-sm sm:text-base text-amber-950">
+                  {t('telemetryNoAlertsTitle')}
+                </h4>
+                <p className="text-xs sm:text-sm text-amber-900/90 leading-relaxed max-w-2xl">
+                  {t('telemetryNoAlertsDesc')}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="pt-2 flex flex-wrap items-center gap-3">
             <button
@@ -280,61 +299,61 @@ export const EarlyWarningView: React.FC = () => {
       {(showDemoPreview || hasRealTelemetry) && filteredAdvisories.length > 0 && (
         <div className="space-y-4">
           {filteredAdvisories.map((advisory) => {
-            const isExpanded = expandedWarningId === advisory.warning_id;
-            const isSpeakingThis = isSpeaking && activeContentId === advisory.warning_id;
+            const isExpanded = expandedWarningId === advisory.id;
+            const isSpeakingThis = isSpeaking && activeContentId === advisory.id;
 
             return (
               <div
-                key={advisory.warning_id}
+                key={advisory.id}
                 className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-2xs transition-all hover:border-stone-300"
               >
                 {/* Advisory Card Header */}
                 <div
                   onClick={() =>
-                    setExpandedWarningId(isExpanded ? null : advisory.warning_id)
+                    setExpandedWarningId(isExpanded ? null : advisory.id)
                   }
                   className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none"
                 >
                   <div className="flex items-start gap-3">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold border shrink-0 ${getRiskBadgeStyles(
-                        advisory.risk_level
+                        advisory.severity
                       )}`}
                     >
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      <span>{advisory.risk_level} RISK</span>
+                      <span>{advisory.severity} RISK</span>
                     </span>
 
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-bold text-sm sm:text-base text-stone-900">
-                          {advisory.predicted_stress_type ||
-                            (advisory.anomaly_detected
+                          {advisory.type ||
+                            ((advisory.severity !== 'LOW')
                               ? 'Stress Anomaly Detected'
                               : 'Nominal Vegetative Vitality')}
                         </h4>
                         <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200">
-                          {Math.round(advisory.confidence_score * 100)}% Confidence
+                          {Math.round(advisory.confidence * 100)}% Confidence
                         </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500">
                         <span className="font-mono text-[11px] text-stone-400">
-                          ID: {advisory.warning_id}
+                          ID: {advisory.id}
                         </span>
                         <span>•</span>
-                        <span className={advisory.anomaly_detected ? 'text-amber-700 font-semibold' : 'text-emerald-700 font-semibold'}>
-                          {advisory.anomaly_detected ? 'Anomaly Detected' : 'Normal Vitality'}
+                        <span className={(advisory.severity !== 'LOW') ? 'text-amber-700 font-semibold' : 'text-emerald-700 font-semibold'}>
+                          {(advisory.severity !== 'LOW') ? 'Anomaly Detected' : 'Normal Vitality'}
                         </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 self-end sm:self-auto text-xs text-stone-400">
-                    {advisory.timestamp && (
+                    {advisory.detected_at && (
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        <span>{formatTimestamp(advisory.timestamp)}</span>
+                        <span>{formatTimestamp(advisory.detected_at)}</span>
                       </span>
                     )}
                     <ChevronRight
@@ -386,7 +405,7 @@ export const EarlyWarningView: React.FC = () => {
                               if (isSpeakingThis) {
                                 stop();
                               } else {
-                                speak(advisory.spoken_advisory, advisory.warning_id);
+                                speak(advisory.spoken_advisory, advisory.id);
                               }
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 transition-colors"

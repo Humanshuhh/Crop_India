@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Satellite,
   Clock,
@@ -16,14 +16,35 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { PendingStateCard } from '../components/common/PendingStateCard';
 import { EarlyWarningView } from '../components/telemetry/EarlyWarningView';
 import { checkBackendHealth } from '../services/health';
+import { fetchSentinelSurfaceMap } from '../services/telemetry';
+import type { SentinelSurfaceMapResponse } from '../types/telemetry.types';
+import type { FarmerProfile } from '../types/profile.types';
 
 type TelemetryLayerId = 'agro_climatic' | 'sentinel_ndvi' | 'early_warning';
 
 export const KisaanTelemetry: React.FC = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
+
+  const [profile, setProfile] = useState<FarmerProfile | null>(null);
+  
+  useEffect(() => {
+    if (user) {
+      try {
+        const saved = localStorage.getItem(`kisan_farmer_profile_${user.uid}`);
+        if (saved) setProfile(JSON.parse(saved) as FarmerProfile);
+      } catch (e) { }
+    } else {
+      try {
+        const saved = localStorage.getItem('kisan_farmer_profile_guest');
+        if (saved) setProfile(JSON.parse(saved) as FarmerProfile);
+      } catch { }
+    }
+  }, [user]);
 
   // Active selected telemetry layer
   const [selectedLayer, setSelectedLayer] = useState<TelemetryLayerId>('agro_climatic');
@@ -43,6 +64,19 @@ export const KisaanTelemetry: React.FC = () => {
     success: boolean;
     text: string;
   } | null>(null);
+
+  const [sentinelData, setSentinelData] = useState<SentinelSurfaceMapResponse | null>(null);
+  const [sentinelLoading, setSentinelLoading] = useState(false);
+
+  useEffect(() => {
+    if (selectedLayer === 'sentinel_ndvi' && profile?.latitude && profile?.longitude) {
+      setSentinelLoading(true);
+      fetchSentinelSurfaceMap(Number(profile.latitude), Number(profile.longitude))
+        .then(res => setSentinelData(res))
+        .catch(() => {})
+        .finally(() => setSentinelLoading(false));
+    }
+  }, [selectedLayer, profile?.latitude, profile?.longitude]);
 
   const handleSelectLayer = (layer: TelemetryLayerId) => {
     setSelectedLayer(layer);
@@ -177,7 +211,7 @@ export const KisaanTelemetry: React.FC = () => {
         aria-label="Telemetry Viewport & Specifications"
       >
         {selectedLayer === 'early_warning' ? (
-          <EarlyWarningView />
+          <EarlyWarningView profile={profile} />
         ) : (
           <>
             {/* Layer Header */}
@@ -196,7 +230,7 @@ export const KisaanTelemetry: React.FC = () => {
                       Active Viewport
                     </span>
                     <span className="text-stone-300">•</span>
-                    <span className="text-xs text-stone-500">Live Telemetry Layer</span>
+                    <span className="text-xs text-stone-500">Estimated Vegetation Layer</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900">
                     {selectedLayer === 'agro_climatic'
@@ -206,10 +240,17 @@ export const KisaanTelemetry: React.FC = () => {
                 </div>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 self-start sm:self-auto">
-                <Clock className="w-3.5 h-3.5" />
-                <span>Data Unavailable • Feed Pending</span>
-              </span>
+              {selectedLayer === 'sentinel_ndvi' && sentinelData ? (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold self-start sm:self-auto ${sentinelData.feed_available ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-amber-50 text-amber-800 border border-amber-300'}`}>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{sentinelData.feed_available ? t('telemetryConnectedBadge') : t('telemetryFeedPendingBadge')}</span>
+                </span>
+              ) : selectedLayer === 'agro_climatic' ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 self-start sm:self-auto">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{t('telemetryFeedPendingBadge')}</span>
+                </span>
+              ) : null}
             </div>
 
         {/* Interactive Controls Toolbar for the Selected Layer */}
@@ -410,10 +451,10 @@ export const KisaanTelemetry: React.FC = () => {
           />
 
           {/* Coordinate Readout Badge in Viewport Corner */}
-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs border border-stone-200 px-2.5 py-1 rounded-md text-[11px] font-mono text-stone-600 shadow-2xs">
+          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs border border-stone-200 px-2.5 py-1 rounded-md text-[11px] font-mono text-stone-600 shadow-2xs z-20">
             {selectedLayer === 'agro_climatic'
-              ? 'Center: 22.5937° N, 78.9629° E (Datum: WGS 84)'
-              : 'Constellation: Sentinel-2A/B (10m GSD)'}
+              ? `Center: ${profile?.latitude || '--'}° N, ${profile?.longitude || '--'}° E (Datum: WGS 84)`
+              : `Center: ${profile?.latitude || '--'}° N, ${profile?.longitude || '--'}° E`}
           </div>
 
           {/* Scale / Level Badge in Viewport Corner */}
@@ -424,49 +465,89 @@ export const KisaanTelemetry: React.FC = () => {
           </div>
 
           {/* Center Honest Empty State Content */}
-          <div className="relative z-10 max-w-md space-y-3 px-4">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-stone-200/80 border border-stone-300 flex items-center justify-center text-stone-500 shadow-xs">
-              {selectedLayer === 'agro_climatic' ? (
-                <Compass className="w-8 h-8 text-emerald-800 animate-pulse" />
+          {/* Center Honest Empty State Content or Real Data */}
+          <div className="relative z-10 max-w-3xl w-full mx-auto space-y-3 px-4 flex flex-col items-center">
+            {selectedLayer === 'sentinel_ndvi' ? (
+              !profile?.latitude ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-amber-50/90 rounded-2xl border border-amber-200">
+                  <AlertCircle className="w-10 h-10 text-amber-600 mb-3" />
+                  <h4 className="text-lg font-bold text-amber-900">{t('telemetryNoLocationTitle')}</h4>
+                  <p className="text-sm text-amber-800 text-center max-w-md mt-2 mb-4">{t('telemetryNoLocationDesc')}</p>
+                  <Link to="/profile" className="px-5 py-2.5 bg-amber-700 text-white rounded-xl text-xs font-semibold hover:bg-amber-800 transition-colors shadow-sm">{t('telemetrySetupProfileBtn')}</Link>
+                </div>
+              ) : sentinelLoading ? (
+                <div className="flex flex-col items-center justify-center p-8">
+                  <Satellite className="w-12 h-12 text-emerald-600 animate-pulse mb-4" />
+                  <p className="text-stone-600 font-bold animate-pulse text-sm">{t('telemetryLoadingSentinel')}</p>
+                </div>
+              ) : sentinelData?.feed_available && sentinelData.vegetation_indices ? (
+                <div className="bg-white/95 rounded-2xl border border-stone-200 p-6 text-left w-full shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4 border-b border-stone-100 pb-4 mb-4">
+                    <Satellite className="w-8 h-8 text-emerald-700 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-stone-900 text-lg">{t('telemetryVegetationEstimatedLabel')}</h4>
+                      <p className="text-sm text-stone-600">Estimated, not direct satellite measurement</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                    <div className="flex gap-3 items-start text-blue-900">
+                      <Info className="w-5 h-5 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block text-sm">{t('telemetryVegetationEstimatedLabel')}</span>
+                        <span className="text-xs opacity-90 leading-relaxed mt-1 block">{t('telemetryVegetationEstimatedNote')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+                      <div className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">{t('telemetryNdviLabel')}</div>
+                      <div className="text-2xl font-black text-emerald-700">{sentinelData.vegetation_indices.mean_ndvi.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+                      <div className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">{t('telemetryNdwiLabel')}</div>
+                      <div className="text-2xl font-black text-blue-700">{sentinelData.vegetation_indices.mean_ndwi.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-center">
+                      <div className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-1">{t('telemetryCanopyLabel')}</div>
+                      <div className="text-sm font-extrabold text-stone-800 mt-2.5">Weather-derived estimate</div>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <Satellite className="w-8 h-8 text-emerald-800 animate-pulse" />
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-base sm:text-lg font-bold text-stone-900">
-                {selectedLayer === 'agro_climatic'
-                  ? 'Geospatial Boundary Map Unavailable'
-                  : 'Live Satellite Telemetry Unavailable'}
-              </h4>
-              <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                {selectedLayer === 'agro_climatic'
-                  ? 'The official ICAR / Planning Commission agro-climatic vector layer is not yet connected to the backend GIS service. In adherence to our zero-fabricated-data charter, no placeholder boundaries or simulated polygons are rendered.'
-                  : 'The Copernicus Sentinel-2 multispectral raster telemetry pipeline is pending integration. In accordance with our zero-fabricated-data charter, no synthetic satellite tiles or mock NDVI heatmaps are rendered.'}
-              </p>
-            </div>
-
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-              <button
-                type="button"
-                onClick={() =>
-                  handleCheckPipeline(
-                    selectedLayer === 'agro_climatic'
-                      ? '/api/v1/telemetry/zones'
-                      : '/api/v1/telemetry/satellite'
-                  )
-                }
-                disabled={checkingPipeline}
-                className="min-h-11 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 active:scale-98 disabled:opacity-60"
-              >
-                <Server className="w-4 h-4" />
-                <span>
-                  {checkingPipeline
-                    ? 'Checking Connection...'
-                    : 'Check Pipeline Connection'}
-                </span>
-              </button>
-            </div>
+                <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto">
+                   <Satellite className="w-10 h-10 text-stone-400 mb-4" />
+                   <h4 className="text-lg font-bold text-stone-900">{t('telemetryFeedPendingBadge')}</h4>
+                   <p className="text-sm text-stone-600 mt-2">{sentinelData?.message || t('telemetryFetchError')}</p>
+                </div>
+              )
+            ) : (
+              <>
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-stone-200/80 border border-stone-300 flex items-center justify-center text-stone-500 shadow-xs">
+                  <Compass className="w-8 h-8 text-emerald-800 animate-pulse" />
+                </div>
+                <div className="space-y-1 text-center max-w-md mx-auto">
+                  <h4 className="text-base sm:text-lg font-bold text-stone-900">Geospatial Boundary Map Unavailable</h4>
+                  <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                    The official ICAR / Planning Commission agro-climatic vector layer is not yet connected to the backend GIS service. In adherence to our zero-fabricated-data charter, no placeholder boundaries or simulated polygons are rendered.
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCheckPipeline('/api/v1/telemetry/agro-climatic-zones')}
+                    disabled={checkingPipeline}
+                    className="min-h-11 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 active:scale-98 disabled:opacity-60"
+                  >
+                    <Server className="w-4 h-4" />
+                    <span>
+                      {checkingPipeline ? 'Checking Connection...' : 'Check Pipeline Connection'}
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

@@ -308,19 +308,28 @@ accessDenied: "Access denied",
   assistantSendQueryBtn: 'প্রশ্ন পাঠান',
   assistantConsultingEngine: 'কিষাণ কৃষি-রোগ নির্ণয় ইঞ্জিনের পরামর্শ নেওয়া হচ্ছে...',
 
-  
-  
-
-
-
-
-
-
-
-
-
-
-
+  // Telemetry integration
+  telemetryNoLocationTitle: 'খামারের অবস্থান প্রয়োজন',
+  telemetryNoLocationDesc: 'মাঠের টেলিমেট্রি আনতে আপনার খামারের অক্ষাংশ ও দ্রাঘিমাংশ দরকার। আগে আপনার খামার প্রোফাইল সেট আপ করুন।',
+  telemetrySetupProfileBtn: 'খামার প্রোফাইল সেট করুন',
+  telemetryLoadingAlerts: 'মাঠের ঝুঁকি সতর্কতা লোড হচ্ছে...',
+  telemetryLoadingSentinel: 'মাঠের তথ্য আনা হচ্ছে...',
+  telemetryConnectedBadge: 'সংযুক্ত',
+  telemetryFeedPendingBadge: 'ফিড অপেক্ষমাণ',
+  telemetryAlertsCount: 'সক্রিয় সতর্কতা',
+  telemetryNoAlertsTitle: 'কোনো সক্রিয় অস্বাভাবিকতা নেই',
+  telemetryNoAlertsDesc: 'মাইক্রো-জলবায়ু পর্যবেক্ষণ সক্রিয় আছে। আপনার অবস্থানে কোনো গুরুতর অস্বাভাবিকতা পাওয়া যায়নি।',
+  telemetryAlertSeverity: 'ঝুঁকির মাত্রা',
+  telemetryAlertConfidence: 'আস্থার মাত্রা',
+  telemetryAlertDetectedAt: 'শনাক্তের সময়',
+  telemetryAlertActions: 'পরামর্শকৃত মাঠ কার্যক্রম',
+  telemetryAlertSpokenAdvisory: 'মৌখিক পরামর্শ',
+  telemetryVegetationEstimatedLabel: 'আনুমানিক উদ্ভিদ সূচক',
+  telemetryVegetationEstimatedNote: 'এই মানগুলি আবহাওয়া তথ্য থেকে অনুমান করা, সরাসরি Sentinel-2 উপগ্রহ পরিমাপ নয়।',
+  telemetryNdviLabel: 'আনু. NDVI (উদ্ভিদ শক্তি)',
+  telemetryNdwiLabel: 'আনু. NDWI (পাতার আর্দ্রতা)',
+  telemetryCanopyLabel: 'ছাউনির অবস্থা',
+  telemetryFetchError: 'টেলিমেট্রি তথ্য লোড হয়নি। সংযোগ পরীক্ষা করুন বা আবার চেষ্টা করুন।',
+  telemetryEarlyWarningTitle: 'মাঠের ঝুঁকি সতর্কতা',
+  telemetryEarlyWarningDesc: 'আপনার খামারের অবস্থানের জন্য আবহাওয়া তথ্য ও কৃষি অস্বাভাবিকতা সনাক্তকরণের উপর ভিত্তি করে।',
 };
-
-

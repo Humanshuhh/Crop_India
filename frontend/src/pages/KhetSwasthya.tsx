@@ -24,54 +24,36 @@ import { useVoice } from '../context/VoiceContext';
 import { evaluateSoil } from '../services/soil';
 import type { SoilHealthInput, RegenerativeAdvisoryResponse } from '../types/soil.types';
 import type { NormalizedError } from '../types/api.types';
-import type { SupportedLanguage } from '../types/i18n.types';
 import { VoiceReaderButton } from '../components/common/VoiceReaderButton';
 import { ErrorMessage } from '../components/common/ErrorMessage';
-import { ResultLanguageSelector } from '../components/common/ResultLanguageSelector';
+
+
+import { useResultCache } from '../context/ResultCacheContext';
 
 export const KhetSwasthya: React.FC = () => {
   const { t, language } = useLanguage();
   const { isSpeaking, activeContentId, currentSentenceIndex } = useVoice();
+  const { soilCache, setSoilCache } = useResultCache();
 
-  const [soilAdvisoryLanguage, setSoilAdvisoryLanguage] = useState<SupportedLanguage>(language);
 
-  // Location form state
-  const [coords, setCoords] = useState<{ latitude: string; longitude: string }>({
-    latitude: '26.8467', // Default sample (Gangetic Plains)
-    longitude: '80.9462',
-  });
+  const coords = soilCache.coords;
+  const inputOrigin = soilCache.inputOrigin;
+  const shcValues = soilCache.shcValues;
+  const report = soilCache.report;
+  const submittedData = soilCache.submittedData;
+
+  const setCoords = (val: React.SetStateAction<{ latitude: string; longitude: string }>) => setSoilCache(p => ({ ...p, coords: typeof val === 'function' ? (val as any)(p.coords) : val }));
+  const setInputOrigin = (val: React.SetStateAction<'OFFICIAL_SHC' | 'FARMER_ESTIMATE'>) => setSoilCache(p => ({ ...p, inputOrigin: typeof val === 'function' ? (val as any)(p.inputOrigin) : val }));
+  const setShcValues = (val: React.SetStateAction<{ ph: string; soc: string; n: string; p: string; k: string; zn: string; }>) => setSoilCache(p => ({ ...p, shcValues: typeof val === 'function' ? (val as any)(p.shcValues) : val }));
+  const setReport = (val: React.SetStateAction<RegenerativeAdvisoryResponse | null>) => setSoilCache(p => ({ ...p, report: typeof val === 'function' ? (val as any)(p.report) : val }));
+  const setSubmittedData = (val: React.SetStateAction<any>) => setSoilCache(p => ({ ...p, submittedData: typeof val === 'function' ? (val as any)(p.submittedData) : val }));
+
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Data origin tracking per §4.2: Official Lab Card vs Farmer Self-Input
-  const [inputOrigin, setInputOrigin] = useState<'OFFICIAL_SHC' | 'FARMER_ESTIMATE'>('OFFICIAL_SHC');
-
-  // Soil health card inputs state
-  const [shcValues, setShcValues] = useState<{
-    ph: string;
-    soc: string;
-    n: string;
-    p: string;
-    k: string;
-    zn: string;
-  }>({
-    ph: '7.2',
-    soc: '0.42',
-    n: '210',
-    p: '14',
-    k: '160',
-    zn: '0.48',
-  });
-
-  // Submission, report, and error states
+  // Submission and error states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<NormalizedError | null>(null);
-  const [report, setReport] = useState<RegenerativeAdvisoryResponse | null>(null);
-  const [submittedData, setSubmittedData] = useState<{
-    provenance: 'OFFICIAL_SHC' | 'FARMER_ESTIMATE';
-    coords: { latitude: string; longitude: string };
-    values: typeof shcValues;
-  } | null>(null);
 
   // GPS Device Location Handler
   const handleDetectLocation = () => {
@@ -138,12 +120,12 @@ export const KhetSwasthya: React.FC = () => {
       phosphorus_kg_ha: shcValues.p ? parseFloat(shcValues.p) : undefined,
       potassium_kg_ha: shcValues.k ? parseFloat(shcValues.k) : undefined,
       zinc_ppm: shcValues.zn ? parseFloat(shcValues.zn) : undefined,
-      target_language: soilAdvisoryLanguage,
+      target_language: language,
     };
 
     setIsSubmitting(true);
     try {
-      const res = await evaluateSoil(payload, soilAdvisoryLanguage);
+      const res = await evaluateSoil(payload, language);
       setReport(res);
       setSubmittedData({
         provenance: inputOrigin,
@@ -438,13 +420,7 @@ export const KhetSwasthya: React.FC = () => {
         {/* Submit Button & Advisory Language */}
         <div className="flex flex-col sm:flex-row sm:items-end gap-4 pt-2">
           <div className="w-full sm:max-w-xs">
-            <ResultLanguageSelector
-              id="soil-advisory-language"
-              label="Soil Advisory Language"
-              value={soilAdvisoryLanguage}
-              onChange={setSoilAdvisoryLanguage}
-              helperText="Soil restoration plan and spoken summary will be generated in this language"
-            />
+            
           </div>
 
           <button
