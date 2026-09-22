@@ -41,3 +41,8 @@ export interface EarlyWarningAlertsResponse {
   active_alerts: LiveAlertEntry[];
 }
 
+/** Response from GET /api/v1/telemetry/agro-climatic-zones */
+export interface AgroClimaticZonesResponse {
+  type: string;
+  features: any[]; // Using any[] for geojson features to keep it minimal and flexible
+}

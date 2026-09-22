@@ -982,8 +982,8 @@ export const Profile: React.FC = () => {
                   {t('recordsSectionTitle')}
                 </h2>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900">
-                Pending Sync
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-600">
+                {t('profileHistoryStatusBadge')}
               </span>
             </div>
 

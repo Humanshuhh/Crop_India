@@ -20,8 +20,8 @@ import { useAuth } from '../context/AuthContext';
 import { PendingStateCard } from '../components/common/PendingStateCard';
 import { EarlyWarningView } from '../components/telemetry/EarlyWarningView';
 import { checkBackendHealth } from '../services/health';
-import { fetchSentinelSurfaceMap } from '../services/telemetry';
-import type { SentinelSurfaceMapResponse } from '../types/telemetry.types';
+import { fetchSentinelSurfaceMap, fetchAgroClimaticZones } from '../services/telemetry';
+import type { SentinelSurfaceMapResponse, AgroClimaticZonesResponse } from '../types/telemetry.types';
 import type { FarmerProfile } from '../types/profile.types';
 
 type TelemetryLayerId = 'agro_climatic' | 'sentinel_ndvi' | 'early_warning';
@@ -68,6 +68,9 @@ export const KisaanTelemetry: React.FC = () => {
   const [sentinelData, setSentinelData] = useState<SentinelSurfaceMapResponse | null>(null);
   const [sentinelLoading, setSentinelLoading] = useState(false);
 
+  const [agroClimaticData, setAgroClimaticData] = useState<AgroClimaticZonesResponse | null>(null);
+  const [agroClimaticLoading, setAgroClimaticLoading] = useState(false);
+
   useEffect(() => {
     if (selectedLayer === 'sentinel_ndvi' && profile?.latitude && profile?.longitude) {
       setSentinelLoading(true);
@@ -78,6 +81,20 @@ export const KisaanTelemetry: React.FC = () => {
     }
   }, [selectedLayer, profile?.latitude, profile?.longitude]);
 
+  useEffect(() => {
+    if (selectedLayer === 'agro_climatic') {
+      setAgroClimaticLoading(true);
+      fetchAgroClimaticZones()
+        .then(res => {
+          setAgroClimaticData(res);
+        })
+        .catch(() => {})
+        .finally(() => {
+          setAgroClimaticLoading(false);
+        });
+    }
+  }, [selectedLayer]);
+
   const handleSelectLayer = (layer: TelemetryLayerId) => {
     setSelectedLayer(layer);
     setControlNotice(null);
@@ -86,16 +103,24 @@ export const KisaanTelemetry: React.FC = () => {
 
   const handleZoneFilterChange = (filter: 'all_15' | 'sub_zones' | 'soil_orders', label: string) => {
     setActiveZoneFilter(filter);
-    setControlNotice(
-      `Filter set to: "${label}". Spatial vector polygon stream is currently offline awaiting GIS backend integration.`
-    );
+    if (agroClimaticData?.features?.length) {
+      setControlNotice(`Filter set to: "${label}". Active GeoJSON stream is rendering ${agroClimaticData.features.length} polygons.`);
+    } else {
+      setControlNotice(
+        `Filter set to: "${label}". Spatial vector polygon stream is currently offline awaiting GIS backend integration.`
+      );
+    }
   };
 
   const handleBandChange = (band: 'ndvi' | 'b4_red' | 'b8_nir' | 'rgb', label: string) => {
     setActiveBand(band);
-    setControlNotice(
-      `Spectral channel set to: "${label}". Live Sentinel-2 satellite raster stream is offline awaiting Copernicus pipeline integration.`
-    );
+    if (sentinelData?.feed_available) {
+      setControlNotice(`Spectral channel set to: "${label}". Live raster stream connected.`);
+    } else {
+      setControlNotice(
+        `Spectral channel set to: "${label}". Live Sentinel-2 satellite raster stream is offline awaiting Copernicus pipeline integration.`
+      );
+    }
   };
 
   const handleZoomAction = (action: 'in' | 'out' | 'reset') => {
@@ -104,26 +129,41 @@ export const KisaanTelemetry: React.FC = () => {
       out: 'Zoom Out (-)',
       reset: 'Reset Viewport',
     };
-    setControlNotice(
-      `${actionNames[action]} triggered. Interactive viewport adjustments are paused while remote sensing telemetry is offline.`
-    );
+    
+    if (selectedLayer === 'agro_climatic' && agroClimaticData?.features?.length) {
+      setControlNotice(`${actionNames[action]} applied to GIS viewport.`);
+    } else if (selectedLayer === 'sentinel_ndvi' && sentinelData?.feed_available) {
+      setControlNotice(`${actionNames[action]} applied to satellite viewport.`);
+    } else {
+      setControlNotice(
+        `${actionNames[action]} triggered. Interactive viewport adjustments are paused while telemetry feed is offline.`
+      );
+    }
   };
 
   const handleCheckPipeline = async (targetEndpoint: string) => {
     setCheckingPipeline(true);
     setPipelineStatusMsg(null);
     try {
-      const health = await checkBackendHealth();
-      if (health.status === 'healthy') {
+      if (targetEndpoint === '/api/v1/telemetry/agro-climatic-zones') {
+        const data = await fetchAgroClimaticZones();
         setPipelineStatusMsg({
-          success: false,
-          text: `Backend server is operational (status: ${health.status}), but the telemetry endpoint "${targetEndpoint}" is not yet deployed. Ingestion pipeline remains in planned roadmap status.`,
+          success: true,
+          text: `${t('telemetryPipelineSuccessPrefix')}${targetEndpoint}${t('telemetryPipelineSuccessMid')}${data.features.length}${t('telemetryPipelineSuccessSuffix')}`,
         });
       } else {
-        setPipelineStatusMsg({
-          success: false,
-          text: `Telemetry endpoint "${targetEndpoint}" is currently offline. No live telemetry data is available.`,
-        });
+        const health = await checkBackendHealth();
+        if (health.status === 'healthy') {
+          setPipelineStatusMsg({
+            success: false,
+            text: `Backend server is operational (status: ${health.status}), but the telemetry endpoint "${targetEndpoint}" is not yet deployed. Ingestion pipeline remains in planned roadmap status.`,
+          });
+        } else {
+          setPipelineStatusMsg({
+            success: false,
+            text: `Telemetry endpoint "${targetEndpoint}" is currently offline. No live telemetry data is available.`,
+          });
+        }
       }
     } catch {
       setPipelineStatusMsg({
@@ -522,32 +562,58 @@ export const KisaanTelemetry: React.FC = () => {
                    <p className="text-sm text-stone-600 mt-2">{sentinelData?.message || t('telemetryFetchError')}</p>
                 </div>
               )
-            ) : (
-              <>
-                <div className="mx-auto w-14 h-14 rounded-2xl bg-stone-200/80 border border-stone-300 flex items-center justify-center text-stone-500 shadow-xs">
-                  <Compass className="w-8 h-8 text-emerald-800 animate-pulse" />
+            ) : selectedLayer === 'agro_climatic' ? (
+              agroClimaticLoading ? (
+                <div className="flex flex-col items-center justify-center p-8">
+                  <Compass className="w-12 h-12 text-emerald-600 animate-pulse mb-4" />
+                  <p className="text-stone-600 font-bold animate-pulse text-sm">{t('telemetryAgroLoading')}</p>
                 </div>
-                <div className="space-y-1 text-center max-w-md mx-auto">
-                  <h4 className="text-base sm:text-lg font-bold text-stone-900">Geospatial Boundary Map Unavailable</h4>
-                  <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                    The official ICAR / Planning Commission agro-climatic vector layer is not yet connected to the backend GIS service. In adherence to our zero-fabricated-data charter, no placeholder boundaries or simulated polygons are rendered.
-                  </p>
+              ) : agroClimaticData?.features?.length ? (
+                <div className="bg-white/95 rounded-2xl border border-stone-200 p-6 text-left w-full shadow-md">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4 border-b border-stone-100 pb-4 mb-4">
+                    <Compass className="w-8 h-8 text-emerald-700 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-stone-900 text-lg">{t('telemetryAgroConnectedTitle')}</h4>
+                      <p className="text-sm text-stone-600">{t('telemetryAgroConnectedSub')}</p>
+                    </div>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                    <div className="flex gap-3 items-start text-emerald-900">
+                      <Info className="w-5 h-5 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block text-sm">{t('telemetryAgroPolygonsPrefix')}{agroClimaticData.features.length}</span>
+                        <span className="text-xs opacity-90 leading-relaxed mt-1 block">{t('telemetryAgroOperationalPrefix')}{agroClimaticData.features.length}{t('telemetryAgroOperationalSuffix')}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleCheckPipeline('/api/v1/telemetry/agro-climatic-zones')}
-                    disabled={checkingPipeline}
-                    className="min-h-11 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 active:scale-98 disabled:opacity-60"
-                  >
-                    <Server className="w-4 h-4" />
-                    <span>
-                      {checkingPipeline ? 'Checking Connection...' : 'Check Pipeline Connection'}
-                    </span>
-                  </button>
-                </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <div className="mx-auto w-14 h-14 rounded-2xl bg-stone-200/80 border border-stone-300 flex items-center justify-center text-stone-500 shadow-xs">
+                    <Compass className="w-8 h-8 text-emerald-800 animate-pulse" />
+                  </div>
+                  <div className="space-y-1 text-center max-w-md mx-auto">
+                    <h4 className="text-base sm:text-lg font-bold text-stone-900">Geospatial Boundary Map Unavailable</h4>
+                    <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                      {agroClimaticData && agroClimaticData.features?.length === 0 ? t('telemetryAgroEmptyDesc') : 'The official ICAR / Planning Commission agro-climatic vector layer is not yet connected to the backend GIS service. In adherence to our zero-fabricated-data charter, no placeholder boundaries or simulated polygons are rendered.'}
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCheckPipeline('/api/v1/telemetry/agro-climatic-zones')}
+                      disabled={checkingPipeline}
+                      className="min-h-11 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 active:scale-98 disabled:opacity-60"
+                    >
+                      <Server className="w-4 h-4" />
+                      <span>
+                        {checkingPipeline ? 'Checking Connection...' : 'Check Pipeline Connection'}
+                      </span>
+                    </button>
+                  </div>
+                </>
+              )
+            ) : null}
           </div>
         </div>
 

@@ -161,6 +161,7 @@ export interface TranslationDictionary {
   agroClimaticZonePending: string;
   recordsSectionTitle: string;
   recordsPendingNote: string;
+  profileHistoryStatusBadge: string;
   editProfileBtn: string;
   saveProfileBtn: string;
   profileSavedNotice: string;
@@ -357,6 +358,16 @@ accessDenied: string;
   telemetryNdwiLabel: string;
   telemetryCanopyLabel: string;
   telemetryFetchError: string;
+  telemetryAgroLoading: string;
+  telemetryAgroConnectedTitle: string;
+  telemetryAgroConnectedSub: string;
+  telemetryAgroPolygonsPrefix: string;
+  telemetryAgroOperationalPrefix: string;
+  telemetryAgroOperationalSuffix: string;
+  telemetryAgroEmptyDesc: string;
+  telemetryPipelineSuccessPrefix: string;
+  telemetryPipelineSuccessMid: string;
+  telemetryPipelineSuccessSuffix: string;
   telemetryEarlyWarningTitle: string;
   telemetryEarlyWarningDesc: string;
 }
