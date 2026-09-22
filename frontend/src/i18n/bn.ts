@@ -266,6 +266,7 @@ accessDenied: "Access denied",
   bottomNavKhet: 'মাটির স্বাস্থ্য',
   bottomNavMitra: 'কিষাণ মিত্র',
   bottomNavHistory: 'রেকর্ড',
+  bottomNavTelemetry: 'টেলিমেট্রি',
   // New UI strings for localization
   validationErrorTitle: 'অনুগ্রহ করে তথ্য পরীক্ষা করুন',
   serviceOfflineTitle: 'পরিষেবা সাময়িকভাবে অনুপলব্ধ',

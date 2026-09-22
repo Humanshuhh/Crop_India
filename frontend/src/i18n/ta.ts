@@ -266,6 +266,7 @@ accessDenied: "Access denied",
   bottomNavKhet: 'மண் வளம்',
   bottomNavMitra: 'கிசான் மித்ரா',
   bottomNavHistory: 'பதிவுகள்',
+  bottomNavTelemetry: 'டெலிமெட்ரி',
   // New UI strings for localization
   validationErrorTitle: 'தயவுசெய்து தகவலைச் சரிபார்க்கவும்',
   serviceOfflineTitle: 'சேவை தற்காலிகமாக கிடைக்கவில்லை',

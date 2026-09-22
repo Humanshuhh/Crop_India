@@ -275,6 +275,7 @@ accessDenied: "Access denied",
   bottomNavKhet: 'खेत स्वास्थ्य',
   bottomNavMitra: 'किसान मित्र',
   bottomNavHistory: 'इतिहास',
+  bottomNavTelemetry: 'टेलीमेट्री',
   // New UI strings for localization
   validationErrorTitle: 'कृपया जानकारी जांचें',
   serviceOfflineTitle: 'सेवा अस्थायी रूप से अनुपलब्ध है',

@@ -266,6 +266,7 @@ accessDenied: "Access denied",
   bottomNavKhet: 'నేల ఆరోగ్యం',
   bottomNavMitra: 'కిసాన్ మిత్ర',
   bottomNavHistory: 'రికార్డులు',
+  bottomNavTelemetry: 'టెలిమెట్రీ',
   // New UI strings for localization
   validationErrorTitle: 'దయచేసి వివరాలను సరిచూసుకోండి',
   serviceOfflineTitle: 'సేవ తాత్కాలికంగా అందుబాటులో లేదు',

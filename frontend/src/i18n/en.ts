@@ -274,6 +274,7 @@ accessDenied: "Access denied",
   bottomNavKhet: 'Soil Health',
   bottomNavMitra: 'Kisan Mitra',
   bottomNavHistory: 'Records',
+  bottomNavTelemetry: 'Telemetry',
   // New UI strings for localization
   validationErrorTitle: 'Check Input Information',
   serviceOfflineTitle: 'Service Temporarily Offline',

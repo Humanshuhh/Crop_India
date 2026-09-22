@@ -302,6 +302,7 @@ accessDenied: string;
   bottomNavKhet: string;
   bottomNavMitra: string;
   bottomNavHistory: string;
+  bottomNavTelemetry: string;
 
   // Assistant page UI strings
   assistantConnectedBadge: string;

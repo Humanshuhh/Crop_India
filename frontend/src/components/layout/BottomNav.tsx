@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Sprout, Activity, Layers, Bot, History as HistoryIcon } from 'lucide-react';
+import { Sprout, Activity, Layers, Bot, History as HistoryIcon, Satellite } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
 export const BottomNav: React.FC = () => {
@@ -23,6 +23,11 @@ export const BottomNav: React.FC = () => {
       icon: <Layers className="w-5 h-5" aria-hidden="true" />,
     },
     {
+      to: '/kisaan-telemetry',
+      label: t('bottomNavTelemetry'),
+      icon: <Satellite className="w-5 h-5" aria-hidden="true" />,
+    },
+    {
       to: '/assistant',
       label: t('bottomNavMitra'),
       icon: <Bot className="w-5 h-5" aria-hidden="true" />,
@@ -39,7 +44,7 @@ export const BottomNav: React.FC = () => {
       aria-label="Mobile Bottom Navigation"
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-900/95 backdrop-blur-md border-t border-stone-800 text-stone-300 shadow-2xl safe-area-bottom"
     >
-      <div className="grid grid-cols-5 h-16 max-w-lg mx-auto px-1">
+      <div className="grid grid-cols-6 h-16 max-w-lg mx-auto px-1">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
