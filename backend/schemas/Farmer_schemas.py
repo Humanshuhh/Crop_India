@@ -6,6 +6,7 @@ class FarmerSchema(BaseModel):
     farmer_id: Optional[str] = Field(default=None, description="Unique ID for the farmer")
     name: str
     phone: str
+    pin: str
     state: str
     district: str
     language: str = "en"

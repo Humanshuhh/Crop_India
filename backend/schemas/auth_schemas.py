@@ -27,6 +27,7 @@ class AdminProfileSchema(BaseModel):
     """
     name: str = Field(..., description="Full name of the official")
     email: EmailStr = Field(..., description="Official government/organizational email")
+    password: str = Field(..., description="Secure password for admin login")
     role: str = Field(default="admin", description="Enforced RBAC role identifier")
     assigned_zone: str = Field(..., description="Agro-climatic zone they oversee")
     designation: str = Field(..., description="Job title or department role")
