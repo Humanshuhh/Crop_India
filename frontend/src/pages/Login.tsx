@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Mail, RotateCw, Eye, EyeOff } from 'lucide-react';
+import { Sprout, Lock, Phone, RotateCw, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 
 export const Login: React.FC = () => {
-  const { signInWithEmail, error, clearAuthError } = useAuth();
+  const { signInWithPhone, error, clearAuthError } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [mpin, setMpin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [clientError, setClientError] = useState<string | null>(null);
 
   // Post-login redirect pattern per Addendum §3
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -22,10 +23,17 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearAuthError();
+    setClientError(null);
+    
+    if (!/^\d{4}$/.test(mpin)) {
+      setClientError('MPIN must be exactly 4 digits.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await signInWithEmail(email, password);
+      await signInWithPhone(phone, mpin);
       navigate(from, { replace: true });
     } catch {
       // Error is set in AuthContext
@@ -51,44 +59,45 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Auth Error Banner */}
-        {error && <ErrorMessage error={error} />}
+        {(clientError || error) && <ErrorMessage error={clientError || error} />}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="login-email" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Email Address
+            <label htmlFor="login-phone" className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Phone Number
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Phone className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                id="login-email"
-                type="email"
+                id="login-phone"
+                type="tel"
                 required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="farmer@example.com"
+                placeholder="10-digit phone number"
               />
             </div>
           </div>
 
           <div>
             <label htmlFor="login-password" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Password
+              4-Digit MPIN
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="login-password"
                 type={showPassword ? 'text' : 'password'}
+                inputMode="numeric"
+                maxLength={4}
                 required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={mpin}
+                onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="••••••••"
+                placeholder="••••"
               />
               <button
                 type="button"
