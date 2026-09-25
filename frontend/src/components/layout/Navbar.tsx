@@ -46,7 +46,6 @@ export const Navbar: React.FC = () => {
     {
       to: '/kisaan-telemetry',
       label: t('navTelemetry'),
-      badge: t('optionalTag'),
       icon: <Activity className="w-4 h-4" />,
     },
     { to: '/history', label: t('navHistory'), icon: <HistoryIcon className="w-4 h-4" /> },
@@ -168,9 +167,9 @@ export const Navbar: React.FC = () => {
                   aria-label={t('navProfile')}
                 >
                   <span className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center text-white font-bold group-hover:bg-emerald-700 transition-colors text-xs">
-                    {user.email ? user.email.charAt(0).toUpperCase() : 'F'}
+                    {user.name ? user.name.charAt(0).toUpperCase() : user.phone ? user.phone.charAt(0) : 'F'}
                   </span>
-                  <span className="max-w-28 truncate font-medium text-xs">{user.email}</span>
+                  <span className="max-w-28 truncate font-medium text-xs">{user.name || user.phone}</span>
                 </Link>
                 <button
                   type="button"
@@ -339,14 +338,14 @@ export const Navbar: React.FC = () => {
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center text-white font-bold text-sm">
-                      {user.email ? user.email.charAt(0).toUpperCase() : 'F'}
+                      {user.name ? user.name.charAt(0).toUpperCase() : user.phone ? user.phone.charAt(0) : 'F'}
                     </span>
                     <div>
                       <div className="text-sm font-semibold text-white flex items-center gap-1.5">
                         <UserIcon className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
                         <span>{t('navProfile')}</span>
                       </div>
-                      <div className="text-xs text-stone-400 truncate max-w-44">{user.email}</div>
+                      <div className="text-xs text-stone-400 truncate max-w-44">{user.name || user.phone}</div>
                     </div>
                   </div>
                   <span className="text-xs text-emerald-400 font-medium">{t('navOpen')} &rarr;</span>

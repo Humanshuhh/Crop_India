@@ -17,7 +17,6 @@ import {
   RefreshCw,
   Layers,
   Phone,
-  Mail,
   Hash,
   X,
   Plus,
@@ -79,10 +78,10 @@ export const Profile: React.FC = () => {
 
   const getInitialProfile = (): FarmerProfile => {
     return {
-      fullName: user?.displayName || '',
-      phone: '',
-      email: user?.email || '',
-      farmerId: user ? `KS-${user.uid.slice(0, 8).toUpperCase()}` : '',
+      fullName: user?.name || '',
+      phone: user?.phone || '',
+      email: '',
+      farmerId: user ? user.uid : '',
       village: '',
       district: '',
       state: '',
@@ -108,8 +107,8 @@ export const Profile: React.FC = () => {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved) as FarmerProfile;
-        parsed.email = user.email || parsed.email || '';
-        parsed.farmerId = `KS-${user.uid.slice(0, 8).toUpperCase()}`;
+        parsed.phone = user.phone || parsed.phone || '';
+        parsed.farmerId = user.uid;
         currentFarmerId = parsed.farmerId;
         setProfile(parsed);
         setFormData(parsed);
@@ -332,7 +331,7 @@ export const Profile: React.FC = () => {
       setSyncNotice(null);
       try {
         const payload: FarmerDbRecord = {
-          farmer_id: updated.farmerId || `KS-${user.uid.slice(0, 8).toUpperCase()}`,
+          farmer_id: updated.farmerId || user.uid,
           name: updated.fullName.trim() || 'Kisan',
           phone: updated.phone.trim() || '',
           state: updated.state.trim() || '',
@@ -572,17 +571,6 @@ export const Profile: React.FC = () => {
                 )}
               </div>
 
-              {/* Email (Read-only from Auth) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider flex items-center gap-1">
-                  <Mail className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{t('emailLabel')}</span>
-                </label>
-                <div className="text-stone-900 font-medium text-sm py-1 font-mono break-all">
-                  {user.email || 'None'}
-                </div>
-              </div>
-
               {/* Farmer ID (Deterministic from UID) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider flex items-center gap-1">
@@ -590,7 +578,7 @@ export const Profile: React.FC = () => {
                   <span>{t('farmerIdLabel')}</span>
                 </label>
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-stone-100 border border-stone-200 font-mono text-xs font-bold text-stone-800">
-                  <span>{profile.farmerId || `KS-${user.uid.slice(0, 8).toUpperCase()}`}</span>
+                  <span>{profile.farmerId || user.uid}</span>
                 </div>
               </div>
             </div>

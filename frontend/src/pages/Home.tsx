@@ -79,7 +79,7 @@ export const Home: React.FC = () => {
   }, [farmerId]);
 
   // Greeting logic: use real farmer name if present, else generic
-  const farmerName = profile?.fullName?.trim() || user?.displayName?.trim();
+  const farmerName = profile?.fullName?.trim() || user?.name?.trim();
   const greetingText = farmerName ? `Namaste, ${farmerName}` : t('farmerGreeting');
 
   // Check if profile has genuine location or crops data

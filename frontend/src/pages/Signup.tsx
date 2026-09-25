@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Mail, RotateCw, Eye, EyeOff } from 'lucide-react';
+import { Sprout, Lock, Phone, User as UserIcon, MapPin, Map, RotateCw, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 
 export const Signup: React.FC = () => {
-  const { signUpWithEmail, error, clearAuthError } = useAuth();
-  const { t } = useLanguage();
+  const { signUpWithPhone, error, clearAuthError } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [district, setDistrict] = useState('');
+  const [mpin, setMpin] = useState('');
+  const [confirmMpin, setConfirmMpin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   const [clientError, setClientError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,19 +31,26 @@ export const Signup: React.FC = () => {
     clearAuthError();
     setClientError(null);
 
-    if (password.length < 6) {
-      setClientError(t('authPasswordLength'));
+    if (!/^\d{4}$/.test(mpin)) {
+      setClientError('MPIN must be exactly 4 digits.');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setClientError(t('authPasswordMismatch'));
+    if (mpin !== confirmMpin) {
+      setClientError('MPINs do not match.');
       return;
     }
 
     setLoading(true);
     try {
-      await signUpWithEmail(email, password);
+      await signUpWithPhone({
+        name,
+        phone,
+        state: stateName,
+        district,
+        mpin,
+        language
+      });
       navigate(from, { replace: true });
     } catch {
       // Error is set in AuthContext
@@ -70,39 +81,97 @@ export const Signup: React.FC = () => {
         {/* Signup Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="signup-email" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Email Address
+            <label htmlFor="signup-name" className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Full Name
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <UserIcon className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                id="signup-email"
-                type="email"
+                id="signup-name"
+                type="text"
                 required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="farmer@example.com"
+                placeholder="Ramesh Kumar"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="signup-password" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Create Password
+            <label htmlFor="signup-phone" className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Phone Number
+            </label>
+            <div className="relative">
+              <Phone className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                id="signup-phone"
+                type="tel"
+                required
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                placeholder="10-digit phone number"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="signup-state" className="block text-xs font-semibold text-stone-700 mb-1.5">
+                State
+              </label>
+              <div className="relative">
+                <Map className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="signup-state"
+                  type="text"
+                  required
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  placeholder="Maharashtra"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="signup-district" className="block text-xs font-semibold text-stone-700 mb-1.5">
+                District
+              </label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="signup-district"
+                  type="text"
+                  required
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                  placeholder="Pune"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="signup-mpin" className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Create 4-Digit MPIN
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                id="signup-password"
+                id="signup-mpin"
                 type={showPassword ? 'text' : 'password'}
+                inputMode="numeric"
+                maxLength={4}
                 required
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={mpin}
+                onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="At least 6 characters"
+                placeholder="••••"
               />
               <button
                 type="button"
@@ -121,20 +190,21 @@ export const Signup: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="signup-confirm-password" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Confirm Password
+            <label htmlFor="signup-confirm-mpin" className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Confirm 4-Digit MPIN
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                id="signup-confirm-password"
+                id="signup-confirm-mpin"
                 type={showConfirmPassword ? 'text' : 'password'}
+                inputMode="numeric"
+                maxLength={4}
                 required
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                value={confirmMpin}
+                onChange={(e) => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="Re-type password"
+                placeholder="••••"
               />
               <button
                 type="button"

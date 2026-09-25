@@ -212,7 +212,7 @@ export const KisaanTelemetry: React.FC = () => {
           <span className="text-xs text-stone-500">Tap a card to switch viewer</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" role="tablist" aria-label="Telemetry Layers">
+        <div className="grid grid-cols-1 md:grid-cols-3 items-start gap-6" role="tablist" aria-label="Telemetry Layers">
           <PendingStateCard
             title={t('agroClimaticMapTitle')}
             description="Visual boundaries for the 15 major Indian agro-climatic zones and sub-regions mapped using official ICAR/Planning Commission geospatial shapefiles."
