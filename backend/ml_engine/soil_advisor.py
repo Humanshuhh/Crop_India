@@ -58,7 +58,7 @@ class SoilRegenerativeAdvisor:
         if not self.client:
             raise RuntimeError("GEMINI_API_KEY is not configured. Set GEMINI_API_KEY in your .env file.")
 
-        # Extract Organic Carbon % across varying schema conventions
+        # Extract Organic Carbon % across varying schema conventions and new methods
         soc_val = getattr(input_data, "organic_carbon_pct", getattr(input_data, "organic_carbon_percent", 0.0))
 
         raw_shc = {
