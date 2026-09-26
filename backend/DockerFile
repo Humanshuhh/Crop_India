@@ -1,0 +1,24 @@
+# Use an official lightweight Python runtime
+FROM python:3.11-slim
+
+# Prevent Python from writing .pyc files and buffer output
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
+
+WORKDIR /app
+
+# Install system-level build dependencies (required for Pillow, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire project code into the container
+COPY . .
+
+# Run Uvicorn bound to the port specified by the environment (required by Cloud Run / container hosts)
+CMD exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT}
