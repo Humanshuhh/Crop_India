@@ -27,6 +27,7 @@ export const Home: React.FC = () => {
   const { user } = useAuth();
 
   const [profile, setProfile] = useState<FarmerProfile | null>(null);
+  const [showAllCrops, setShowAllCrops] = useState(false);
   const [recentHistory, setRecentHistory] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -92,6 +93,13 @@ export const Home: React.FC = () => {
     (item) => item.type === 'early_warning' || item.status_or_confidence?.toLowerCase().includes('high')
   );
 
+    const cropNames = (profile?.primaryCrops || '')
+    .split(',')
+    .map((crop) => crop.trim())
+    .filter(Boolean);
+
+  const visibleCrops = cropNames.slice(0, 2);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 space-y-8">
       {/* 1. GREETING & FARM CONTEXT SECTION */}
@@ -114,43 +122,68 @@ export const Home: React.FC = () => {
 
         {/* Real Farm Context Bar */}
         {hasAnyFarmData ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 items-stretch gap-3.5 pt-1 text-xs">
             {/* Location */}
-            <div className="p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3">
+            <div className="h-32 min-w-0 p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3 overflow-hidden">
               <span className="p-2 rounded-xl bg-emerald-900/60 text-emerald-400 shrink-0">
                 <MapPin className="w-4 h-4" aria-hidden="true" />
               </span>
-              <div>
-                <span className="text-stone-400 block font-medium">{t('locationLabel')}</span>
-                <span className="text-stone-100 font-bold text-sm">
+              <div className="flex-1 min-w-0">
+                <span className="text-stone-400 block font-medium">{t('locationLabel')}
+                </span>
+                <span className="text-stone-100 font-bold text-sm block whitespace-normal break-words">
                   {[profile?.village, profile?.district, profile?.state].filter(Boolean).join(', ') || '—'}
                 </span>
               </div>
             </div>
 
             {/* Registered Crops */}
-            <div className="p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3">
+            <div className="h-32 min-w-0 p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3 overflow-hidden">
               <span className="p-2 rounded-xl bg-amber-900/60 text-amber-400 shrink-0">
                 <Trees className="w-4 h-4" aria-hidden="true" />
               </span>
-              <div className="min-w-0">
+              <div className="flex-1 min-w-0">
                 <span className="text-stone-400 block font-medium">
                   {t('primaryCropsLabel')}
                 </span>
-                <span className="text-stone-100 font-bold text-sm block min-w-0 whitespace-normal line-clamp-4">
-                  {profile?.primaryCrops || '—'}
-                </span>
+                <div className="mt-1 flex min-w-0 flex-col items-start gap-1.5">
+                  {cropNames.length === 0 ? (
+                    <span className="text-stone-400">—</span>
+                  ) : (
+                    visibleCrops.map((crop, index) => (
+                      <span
+                        key={`${crop}-${index}`}
+                        title={crop}
+                        className="block w-full min-w-0 truncate rounded-md border border-stone-600/70 bg-stone-700/80 px-2 py-1 text-xs font-semibold text-stone-100"
+                      >
+                        {crop}
+                      </span>
+                    ))
+                  )}
+
+                  {cropNames.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllCrops(true)}
+                      className="rounded-md px-2 py-1 text-xs font-bold text-amber-400 hover:bg-stone-700/60 hover:text-amber-300"
+                      aria-haspopup="dialog"
+                    >
+                      +{cropNames.length - 2} more
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Land Area */}
-            <div className="p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3">
+            <div className="h-32 min-w-0 p-3.5 rounded-2xl bg-stone-800/80 border border-stone-700/80 flex items-start gap-3 overflow-hidden">
               <span className="p-2 rounded-xl bg-blue-900/60 text-blue-400 shrink-0">
                 <Layers className="w-4 h-4" aria-hidden="true" />
               </span>
-              <div>
-                <span className="text-stone-400 block font-medium">{t('landAreaLabel')}</span>
-                <span className="text-stone-100 font-bold text-sm">
+              <div className="flex-1 min-w-0">
+                <span className="text-stone-400 block font-medium">{t('landAreaLabel')}
+                </span>
+                <span className="text-stone-100 font-bold text-sm block whitespace-normal break-words">
                   {profile?.landArea ? `${profile.landArea} ${profile.landUnit || 'acres'}` : '—'}
                 </span>
               </div>
@@ -171,6 +204,45 @@ export const Home: React.FC = () => {
             </Link>
           </div>
         )}
+
+      {showAllCrops && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="crop-list-title"
+            className="w-full max-w-md rounded-2xl border border-stone-700 bg-stone-900 p-5 text-stone-100 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2
+                id="crop-list-title"
+                className="text-lg font-bold"
+              >
+                {t('primaryCropsLabel')}
+              </h2>
+
+              <button
+                type="button"
+                onClick={() => setShowAllCrops(false)}
+                className="rounded-lg border border-stone-700 px-3 py-2 text-sm text-stone-300 hover:bg-stone-800"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              {cropNames.map((crop, index) => (
+                <div
+                  key={`${crop}-${index}`}
+                  className="rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm break-words"
+                >
+                  {crop}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       </section>
 
       {/* 2. IMPORTANT REAL ADVISORY / WARNING SECTION */}

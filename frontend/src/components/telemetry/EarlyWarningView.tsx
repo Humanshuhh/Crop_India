@@ -5,9 +5,7 @@ import {
   ShieldCheck,
   Calendar,
   Clock,
-  Info,
   ChevronRight,
-  Eye,
   Volume2,
   Square,
   ListOrdered,
@@ -24,53 +22,6 @@ export interface EarlyWarningViewProps {
   profile: FarmerProfile | null;
 }
 
-/**
- * Clearly labeled demo-only preview alerts for UI verification.
- * These strictly conform to the actual backend EarlyWarningAdvisory response model.
- */
-const DEMO_PREVIEW_ADVISORIES: LiveAlertEntry[] = [
-  {
-    id: 'warn_demo_01',
-    severity: 'HIGH',
-    type: 'Incipient Fungal Spore Proliferation (Pre-Symptomatic Blight)',
-    confidence: 0.88,
-    proactive_actions: [
-      'Apply prophylactic spray of fermented sour buttermilk (Chaach) diluted 1:10 with water.',
-      'Foliar spray of Pseudomonas fluorescens (20g/liter) during early morning hours.',
-      'Inspect field bunds and drainage paths to avoid root zone water stagnation.',
-    ],
-    spoken_advisory:
-      'किसान भाई, उपग्रह डेटा के अनुसार आपके खेत में नमी अधिक होने से फफूंद लगने का खतरा है। पत्तों पर लक्षण दिखने से पहले ही खट्टी छाछ या स्यूडोमोनास का छिड़काव करें।',
-    detected_at: new Date().toISOString(),
-  },
-  {
-    id: 'warn_demo_02',
-    severity: 'MODERATE',
-    type: 'Soil Moisture Stress / Canopy Dehydration',
-    confidence: 0.82,
-    proactive_actions: [
-      'Apply straw or crop residue mulch to preserve residual root moisture.',
-      'Administer light evening irrigation; avoid daytime peak heat.',
-      'Spray 2% diluted Jeevamrit to strengthen foliar drought resilience.',
-    ],
-    spoken_advisory:
-      'किसान भाई, उपग्रह डेटा से पता चला है कि खेत की नमी तेजी से घट रही है। फसल को सूखने से बचाने के लिए पुआल की मल्चिंग करें और शाम को हल्की सिंचाई दें।',
-    detected_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'warn_demo_03',
-    severity: 'LOW',
-    type: 'Normal Vitality',
-    confidence: 0.95,
-    proactive_actions: [
-      'Crop vitality index is normal. Continue planned organic maintenance.',
-    ],
-    spoken_advisory:
-      'फसल का स्वास्थ्य सामान्य है। कोई पूर्व चेतावनी आवश्यक नहीं है।',
-    detected_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
-
 export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) => {
   const { t } = useLanguage();
   const { isSpeaking, activeContentId, speak, stop } = useVoice();
@@ -81,11 +32,10 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'HIGH' | 'MODERATE' | 'LOW'>('ALL');
-  const [showDemoPreview, setShowDemoPreview] = useState(false);
-  const [expandedWarningId, setExpandedWarningId] = useState<string | null>('warn_demo_01');
+  const [expandedWarningId, setExpandedWarningId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (profile?.latitude && profile?.longitude && !showDemoPreview) {
+    if (profile?.latitude && profile?.longitude) {
       setIsLoading(true);
       setErrorMsg(null);
       fetchEarlyWarningAlerts(Number(profile.latitude), Number(profile.longitude))
@@ -99,16 +49,14 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
         })
         .finally(() => setIsLoading(false));
     }
-  }, [profile?.latitude, profile?.longitude, showDemoPreview]);
+  }, [profile?.latitude, profile?.longitude]);
 
   const hasRealTelemetry = advisories.length > 0;
 
-  const displayedAdvisories = showDemoPreview ? DEMO_PREVIEW_ADVISORIES : advisories;
-
   const filteredAdvisories =
-    activeFilter === 'ALL'
-      ? displayedAdvisories
-      : displayedAdvisories.filter((a) => a.severity === activeFilter);
+  activeFilter === 'ALL'
+    ? advisories
+    : advisories.filter((a) => a.severity === activeFilter);
 
   const getRiskBadgeStyles = (level: RiskLevel) => {
     switch (level) {
@@ -154,34 +102,7 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
             Fuses multi-spectral satellite telemetry, weather time-series, and pre-symptomatic plant pathology models.
           </p>
         </div>
-
-        {/* Development Preview Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowDemoPreview(!showDemoPreview)}
-          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
-            showDemoPreview
-              ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-2xs'
-              : 'bg-white border-stone-300 text-stone-700 hover:bg-stone-100'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-          <span>{showDemoPreview ? 'Viewing Demo UI Preview' : 'Inspect Demo UI Hierarchy'}</span>
-        </button>
       </div>
-
-      {/* Demo Mode Notice */}
-      {showDemoPreview && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs animate-fadeIn">
-          <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold">UI Design Preview Active: </span>
-            <span>
-              Demonstrating the exact <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">EarlyWarningAdvisory</code> schema layout (risk levels, proactive actions, confidence ratings, and spoken voice advisories). In adherence to our zero-fabricated-data charter, no placeholder API calls are made.
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
@@ -210,7 +131,7 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
       </div>
 
       {/* Loading, Error, or Missing Location State */}
-      {!showDemoPreview && !hasRealTelemetry && (
+      {!hasRealTelemetry && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-6 sm:p-8 space-y-5 shadow-2xs">
           {!profile?.latitude ? (
             <div className="flex items-start gap-3.5">
@@ -266,24 +187,11 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
               </div>
             </div>
           )}
-
-          <div className="pt-2 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowDemoPreview(true)}
-              className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-semibold text-xs transition-colors shadow-2xs"
-            >
-              Inspect Demo UI Hierarchy
-            </button>
-            <span className="text-xs text-amber-800">
-              Contract, schemas, and service boundary are fully aligned.
-            </span>
-          </div>
         </div>
       )}
 
       {/* Empty State (when server returns empty list or filter has no matches) */}
-      {(showDemoPreview || hasRealTelemetry) && filteredAdvisories.length === 0 && (
+      {(hasRealTelemetry) && filteredAdvisories.length === 0 && (
         <div className="rounded-2xl border border-stone-200 p-10 text-center bg-white space-y-3 shadow-2xs">
           <ShieldCheck className="w-10 h-10 text-emerald-600 mx-auto" />
           <h4 className="font-bold text-sm sm:text-base text-stone-900">
@@ -296,7 +204,7 @@ export const EarlyWarningView: React.FC<EarlyWarningViewProps> = ({ profile }) =
       )}
 
       {/* Advisory Cards List */}
-      {(showDemoPreview || hasRealTelemetry) && filteredAdvisories.length > 0 && (
+      {(hasRealTelemetry) && filteredAdvisories.length > 0 && (
         <div className="space-y-4">
           {filteredAdvisories.map((advisory) => {
             const isExpanded = expandedWarningId === advisory.id;
