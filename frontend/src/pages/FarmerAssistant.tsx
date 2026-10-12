@@ -13,8 +13,6 @@ import {
   Volume2,
   Square,
   ArrowDown,
-  Info,
-  Eye,
   AlertTriangle,
   ListOrdered,
   BookOpen,
@@ -45,40 +43,6 @@ const formatSeconds = (sec: number): string => {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 };
 
-// Sample demo conversation illustrating structured response hierarchy
-const DEMO_CONVERSATION: AssistantMessage[] = [
-  {
-    id: 'demo-user-1',
-    sender: 'user',
-    text: 'Yellow spots with concentric brown rings are appearing on the lower leaves of my tomato crop. How should I manage this organically without chemical pesticides?',
-    imageUrl: 'https://images.unsplash.com/photo-1592417817098-8f3d6910985c?w=600&auto=format&fit=crop&q=80',
-    timestamp: '10:14 AM',
-  },
-  {
-    id: 'demo-assistant-1',
-    sender: 'assistant',
-    text: 'Based on the concentric brown rings and lower-canopy chlorosis visible in your attached image, the crop shows characteristic symptoms of Early Blight (Alternaria solani). Because fungal spores flourish in canopy moisture, prompt organic canopy management and bio-prophylaxis are recommended.',
-    actionableSteps: [
-      'Prune and safely compost/destroy infected lower leaves (up to 25-30 cm above soil level) to eliminate ground-spore splash and improve airflow.',
-      'Spray sour fermented buttermilk (diluted 1:10 with water) or 5% Neem Seed Kernel Extract (NSKE) early in the morning before sunlight intensifies.',
-      'Apply Trichoderma viride bio-fungicide (5g/L water) around the root zone and mulch with dry paddy straw to prevent soil-to-leaf splashing during watering.',
-      'Avoid overhead wetting; switch to targeted drip or root-zone watering to keep foliage dry.',
-    ],
-    sources: [
-      'ICAR-IARI Division of Plant Pathology Advisory',
-      'National Center for Organic & Natural Farming (NCONF)',
-      'KVK Integrated Pest Management Package',
-    ],
-    relatedTopics: [
-      'How to prepare Neem Seed Kernel Extract (NSKE)?',
-      'Companion planting with marigold for nematode control',
-    ],
-    spokenSummary:
-      'Early blight symptoms detected on your tomato leaves. Prune bottom foliage, spray fermented sour buttermilk at 1:10 dilution in the morning, and mulch around root zone to restrict fungal spore splash.',
-    timestamp: '10:15 AM',
-  },
-];
-
 import { useResultCache } from '../context/ResultCacheContext';
 
 export const FarmerAssistant: React.FC = () => {
@@ -93,13 +57,11 @@ export const FarmerAssistant: React.FC = () => {
   const inputText = assistantCache.inputText;
   const selectedImage = assistantCache.selectedImage;
   const imagePreviewUrl = assistantCache.imagePreviewUrl;
-  const showDemoPreview = assistantCache.showDemoPreview;
 
   const setMessages = (val: React.SetStateAction<AssistantMessage[]>) => setAssistantCache(p => ({ ...p, messages: typeof val === 'function' ? (val as any)(p.messages) : val }));
   const setInputText = (val: React.SetStateAction<string>) => setAssistantCache(p => ({ ...p, inputText: typeof val === 'function' ? (val as any)(p.inputText) : val }));
   const setSelectedImage = (val: React.SetStateAction<File | null>) => setAssistantCache(p => ({ ...p, selectedImage: typeof val === 'function' ? (val as any)(p.selectedImage) : val }));
   const setImagePreviewUrl = (val: React.SetStateAction<string | null>) => setAssistantCache(p => ({ ...p, imagePreviewUrl: typeof val === 'function' ? (val as any)(p.imagePreviewUrl) : val }));
-  const setShowDemoPreview = (val: React.SetStateAction<boolean>) => setAssistantCache(p => ({ ...p, showDemoPreview: typeof val === 'function' ? (val as any)(p.showDemoPreview) : val }));
 
   const [imageError, setImageError] = useState<string | null>(null);
   const [micNotice, setMicNotice] = useState<string | null>(null);
@@ -315,10 +277,6 @@ export const FarmerAssistant: React.FC = () => {
     const query = (textToSend !== undefined ? textToSend : inputText).trim();
     if (!query && !selectedImage) return;
 
-    if (showDemoPreview) {
-      setShowDemoPreview(false);
-    }
-
     const userMessageId = `user-${Date.now()}`;
     const newUserMessage: AssistantMessage = {
       id: userMessageId,
@@ -386,17 +344,15 @@ export const FarmerAssistant: React.FC = () => {
     }
   };
 
-  const displayedMessages = showDemoPreview ? DEMO_CONVERSATION : messages;
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 flex flex-col h-full min-h-0">
       {/* Page Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-stone-200 shrink-0 gap-3">
+      <div className="flex flex-wrap items-center justify-between pb-4 border-b border-stone-200 shrink-0 gap-3">
         <div className="flex items-center gap-3">
           <span className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800 shadow-xs">
             <Bot className="w-6 h-6" />
           </span>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-extrabold text-stone-900 tracking-tight">
                 Kisan Mitra
@@ -410,24 +366,6 @@ export const FarmerAssistant: React.FC = () => {
 
         {/* Header Actions: Demo Preview Toggle & Voice Ready badge */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowDemoPreview(!showDemoPreview)}
-            className={`min-h-[44px] inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-              showDemoPreview
-                ? 'bg-amber-100 border-amber-300 text-amber-950 shadow-2xs'
-                : 'bg-white border-stone-300 text-stone-700 hover:bg-stone-100'
-            }`}
-            aria-label={showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
-          >
-            <Eye className="w-4 h-4 text-amber-700" />
-            <span className="hidden sm:inline">
-              {showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
-            </span>
-            <span className="sm:hidden">
-              {showDemoPreview ? t('assistantDemoExitLabel') : t('assistantDemoInspectLabel')}
-            </span>
-          </button>
 
           <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-stone-500 bg-stone-100 px-2.5 py-1.5 rounded-xl border border-stone-200">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
@@ -436,25 +374,12 @@ export const FarmerAssistant: React.FC = () => {
         </div>
       </div>
 
-      {/* Demo Mode Notice */}
-      {showDemoPreview && (
-        <div className="mt-3 shrink-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs animate-fadeIn">
-          <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-bold">{t('assistantDemoNoticeTitle')}</p>
-            <p className="text-amber-900/90 leading-relaxed">
-              {t('assistantDemoNoticeBody')}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Messages Scroll Area */}
       <div
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-y-auto py-6 space-y-6"
       >
-        {displayedMessages.length === 0 ? (
+        {messages.length === 0 ? (
           /* Empty / Initial State with Agricultural Prompts */
           <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-6 max-w-lg mx-auto my-auto">
             <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shadow-xs">
@@ -487,7 +412,7 @@ export const FarmerAssistant: React.FC = () => {
                     onClick={() => handleSendMessage(q)}
                     className="min-h-[44px] text-left text-xs p-3 rounded-xl border border-stone-200 bg-white hover:bg-emerald-50/60 hover:border-emerald-300 text-stone-800 font-medium transition-all shadow-2xs flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <span>{q}</span>
+                    <span className="flex-1 min-w-0 break-words">{q}</span>
                     <ArrowDown className="w-3.5 h-3.5 text-stone-400 group-hover:text-emerald-600 -rotate-90 shrink-0 ml-2" />
                   </button>
                 ))}
@@ -495,7 +420,8 @@ export const FarmerAssistant: React.FC = () => {
             </div>
           </div>
         ) : (
-          displayedMessages.map((msg) => {
+          messages.map((msg) =>
+          {
             const isUser = msg.sender === 'user';
             const isSpeakingThis = isSpeaking && activeContentId === msg.id;
 

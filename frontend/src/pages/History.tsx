@@ -9,9 +9,7 @@ import {
   Calendar,
   ChevronRight,
   RotateCw,
-  Info,
   Clock,
-  Eye,
   FileText,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -19,69 +17,14 @@ import { getFarmerHistory } from '../services/history';
 import type { HistoryItem, HistoryFilter } from '../types/history.types';
 import type { NormalizedError } from '../types/api.types';
 
-// Clearly isolated demo-only records for UI/UX inspection
-
 export const History: React.FC = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
-
-  const DEMO_PREVIEW_RECORDS: HistoryItem[] = [
-    {
-      id: 'demo-hist-1',
-      type: 'soil_evaluation',
-      title: t('historyDemoSoilTitle'),
-      summary: t('historyDemoSoilSummary'),
-      date: '10 Sep 2026, 11:20 AM',
-      status_or_confidence: t('historyDemoSoilStatus'),
-      tags: [
-        t('historyDemoSoilTagRegenerative'),
-        t('historyDemoSoilTagNonChemical'),
-      ],
-      details: {
-        ph: 6.8,
-        organic_carbon: '0.42%',
-        recommended_amendments: [
-          t('historyDemoSoilAmendmentJeevamrit'),
-          t('historyDemoSoilAmendmentTrichoderma'),
-        ],
-        rotation: t('historyDemoSoilRotation'),
-      },
-    },
-    {
-      id: 'demo-hist-2',
-      type: 'diagnosis',
-      title: t('historyDemoDiseaseTitle'),
-      summary: t('historyDemoDiseaseSummary'),
-      date: '08 Sep 2026, 09:45 AM',
-      status_or_confidence: 'Confidence: HIGH (91%)',
-      tags: ['Multimodal Leaf Pathology', 'Neem Spray'],
-      details: {
-        pathogen: 'Alternaria solani',
-        remedy: 'Neem Oil (5ml/L) + fermented buttermilk spray',
-        prevention: 'Contour drainage & canopy aeration',
-      },
-    },
-    {
-      id: 'demo-hist-3',
-      type: 'early_warning',
-      title: 'Telemetry Risk Alert — Fungal Blight Humidity Anomaly',
-      summary:
-        'Canopy saturation trigger (>90% RH for 48h). Prophylactic bio-fungicide broadcast recommended before rains.',
-      date: '05 Sep 2026, 06:00 AM',
-      status_or_confidence: 'Risk: HIGH',
-      tags: ['Satellite & Weather Fusion', 'Proactive Alert'],
-      details: {
-        trigger: '48h relative humidity elevation',
-        sentinel_index: 'NDVI 0.52',
-      },
-    },
-  ];
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<NormalizedError | null>(null);
   const [activeFilter, setActiveFilter] = useState<HistoryFilter>('all');
-  const [showDemoPreview, setShowDemoPreview] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>('demo-hist-1');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const farmerId = user ? `KS-${user.uid.slice(0, 8).toUpperCase()}` : 'default_farmer';
 
@@ -102,12 +45,10 @@ export const History: React.FC = () => {
     fetchHistory();
   }, [farmerId]);
 
-  const displayedRecords = showDemoPreview ? DEMO_PREVIEW_RECORDS : historyItems;
-
   const filteredRecords =
     activeFilter === 'all'
-      ? displayedRecords
-      : displayedRecords.filter((item) => item.type === activeFilter);
+      ? historyItems
+      : historyItems.filter((item) => item.type === activeFilter);
 
   const getTypeBadge = (type: HistoryItem['type']) => {
     switch (type) {
@@ -148,39 +89,7 @@ export const History: React.FC = () => {
             {t('historyPageSubtitle')}
           </p>
         </div>
-
-        {/* Development Preview Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowDemoPreview(!showDemoPreview)}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border self-start sm:self-auto ${
-            showDemoPreview
-              ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-2xs'
-              : 'bg-white border-stone-300 text-stone-700 hover:bg-stone-50'
-          }`}
-        >
-          <Eye className="w-4 h-4" />
-          <span>
-            {showDemoPreview
-              ? t('historyDemoViewingLabel')
-              : t('historyDemoInspectLabel')}
-          </span>
-        </button>
       </div>
-
-      {/* Demo Notice Banner */}
-      {showDemoPreview && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-950 flex items-start gap-2.5 shadow-2xs animate-fadeIn">
-          <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold">{t('historyDemoNoticeTitle')} </span>
-            <span>
-              {t('historyDemoNoticeBody')}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Category Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-xl bg-stone-100 p-1 border border-stone-200" role="tablist">
@@ -227,7 +136,7 @@ export const History: React.FC = () => {
       )}
 
       {/* Backend API Pending Banner (when not in demo preview and backend is not yet deployed) */}
-      {!loading && !showDemoPreview && error && (
+      {!loading && error && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-6 sm:p-8 space-y-4 shadow-2xs">
           <div className="flex items-start gap-3">
             <span className="p-2.5 rounded-xl bg-amber-100 text-amber-900 shrink-0">
@@ -241,18 +150,6 @@ export const History: React.FC = () => {
                 {t('historyErrorBody')}
               </p>
             </div>
-          </div>
-          <div className="pt-3 border-t border-amber-200 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowDemoPreview(true)}
-              className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-semibold text-xs transition-colors shadow-2xs"
-            >
-              {t('historyErrorPreviewBtn')}
-            </button>
-            <span className="text-xs text-amber-800 italic">
-              {t('historyErrorSessionNote')}
-            </span>
           </div>
         </div>
       )}

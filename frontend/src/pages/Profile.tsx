@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { FarmerProfile } from '../types/profile.types';
+import indiaLocations from '../data/indiaLocations.json';
 import {
   saveFarmerProfileToDb,
   getFarmerProfileFromDb,
@@ -61,6 +62,10 @@ const AGRO_CLIMATIC_ZONES = [
   'The Islands',
 ];
 
+const INDIAN_STATES_AND_UTS = indiaLocations.states
+  .map((state) => state.name)
+  .sort((a, b) => a.localeCompare(b));
+
 export const Profile: React.FC = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
@@ -71,8 +76,6 @@ export const Profile: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [newCropInput, setNewCropInput] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'synced' | 'pending_credentials' | 'sync_error'>('idle');
-  const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
   const storageKey = user ? `kisan_farmer_profile_${user.uid}` : '';
 
@@ -97,6 +100,11 @@ export const Profile: React.FC = () => {
 
   const [profile, setProfile] = useState<FarmerProfile>(getInitialProfile);
   const [formData, setFormData] = useState<FarmerProfile>(getInitialProfile);
+  const [districtIsCustom, setDistrictIsCustom] = useState(false);
+  const [districtSearch, setDistrictSearch] = useState('');
+  const [showDistrictOptions, setShowDistrictOptions] = useState(false);
+  const [stateSearch, setStateSearch] = useState('');
+  const [showStateOptions, setShowStateOptions] = useState(false);
 
   // Load profile from localStorage whenever user changes
   useEffect(() => {
@@ -150,16 +158,9 @@ export const Profile: React.FC = () => {
             }));
           }
         })
-        .catch((err: any) => {
-          const errMsg = err?.userMessage || err?.technicalDetails || '';
-          if (
-            errMsg.includes('Missing credentials') ||
-            errMsg.includes('Database connection uninitialized') ||
-            err?.statusCode === 500
-          ) {
-            setSyncState('pending_credentials');
-          }
-        });
+        .catch(() => {
+        // Keep the locally saved profile if cloud data is unavailable.
+      });
     }
   }, [user, storageKey]);
 
@@ -273,27 +274,62 @@ export const Profile: React.FC = () => {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
 
-    if (formData.landArea.trim() !== '') {
-      const parsedArea = parseFloat(formData.landArea);
-      if (isNaN(parsedArea) || parsedArea < 0) {
-        errors.landArea = 'Land holding area must be a non-negative number (0 or greater).';
+    // Text fields: allow letters, spaces, periods, apostrophes and hyphens.
+    // Supports Indian-language letters as well as English.
+    const textFields = [
+      { key: 'fullName', value: formData.fullName, label: 'Farmer name' },
+      { key: 'district', value: formData.district, label: 'District' },
+      { key: 'state', value: formData.state, label: 'State' },
+    ] as const;
+
+    for (const field of textFields) {
+      const village = formData.village.trim();
+
+      if (
+        village &&
+        !/^[\p{L}\p{M}\p{N}\s.,'’/#()\-]+$/u.test(village)
+      ) {
+        errors.village =
+          'Village/town may contain letters, numbers, spaces, and common punctuation only.';
+      }
+
+      const value = field.value.trim();
+
+      if (value && !/^[\p{L}\p{M}\s.'’-]+$/u.test(value)) {
+        errors[field.key] =
+          `${field.label} should contain letters only, without numbers or special symbols.`;
       }
     }
 
-    if (formData.phone.trim() && !/^[0-9+ \-]{7,15}$/.test(formData.phone.trim())) {
-      errors.phone = 'Please enter a valid phone number (7 to 15 digits).';
+    // Land area: accept only a non-negative decimal number.
+    const area = formData.landArea.trim();
+    if (area !== '') {
+      if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(area) || Number(area) < 0) {
+        errors.landArea =
+          'Land holding area must be a non-negative number (0 or greater).';
+      }
     }
 
-    if (formData.latitude.trim() !== '') {
-      const latNum = parseFloat(formData.latitude);
-      if (isNaN(latNum) || latNum < -90 || latNum > 90) {
+    // Latitude: accept only a number between -90 and 90.
+    const latitude = formData.latitude.trim();
+    if (latitude !== '') {
+      if (
+        !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(latitude) ||
+        Number(latitude) < -90 ||
+        Number(latitude) > 90
+      ) {
         errors.latitude = 'Latitude must be between -90° and 90°.';
       }
     }
 
-    if (formData.longitude.trim() !== '') {
-      const lonNum = parseFloat(formData.longitude);
-      if (isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
+    // Longitude: accept only a number between -180 and 180.
+    const longitude = formData.longitude.trim();
+    if (longitude !== '') {
+      if (
+        !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(longitude) ||
+        Number(longitude) < -180 ||
+        Number(longitude) > 180
+      ) {
         errors.longitude = 'Longitude must be between -180° and 180°.';
       }
     }
@@ -301,6 +337,7 @@ export const Profile: React.FC = () => {
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
+
 
   // Save changes
   const handleSave = async (e: React.FormEvent) => {
@@ -325,46 +362,31 @@ export const Profile: React.FC = () => {
     }
 
     // 2. Wire to POST /db/farmer -> Firestore
-    if (user) {
-      setSyncState('syncing');
-      setSyncNotice(null);
-      try {
-        const payload: FarmerDbRecord = {
-          farmer_id: updated.farmerId || user.uid,
-          name: updated.fullName.trim() || 'Kisan',
-          phone: updated.phone.trim() || '',
-          state: updated.state.trim() || '',
-          district: updated.district.trim() || '',
-          language: language || 'en',
-          village: updated.village.trim() || undefined,
-          latitude: updated.latitude ? parseFloat(updated.latitude) : undefined,
-          longitude: updated.longitude ? parseFloat(updated.longitude) : undefined,
-          land_area: updated.landArea ? parseFloat(updated.landArea) : undefined,
-          primary_crops: updated.primaryCrops || undefined,
-          agro_climatic_zone: updated.agroClimaticZone || undefined,
-        };
 
+    if (user) {
+      const payload: FarmerDbRecord = {
+        farmer_id: updated.farmerId || user.uid,
+        name: updated.fullName.trim() || 'Kisan',
+        phone: (user?.phone || updated.phone).trim() || '',
+        state: updated.state.trim() || '',
+        district: updated.district.trim() || '',
+        language: language || 'en',
+        village: updated.village.trim() || undefined,
+        latitude: updated.latitude ? parseFloat(updated.latitude) : undefined,
+        longitude: updated.longitude ? parseFloat(updated.longitude) : undefined,
+        land_area: updated.landArea ? parseFloat(updated.landArea) : undefined,
+        primary_crops: updated.primaryCrops || undefined,
+        agro_climatic_zone: updated.agroClimaticZone || undefined,
+      };
+
+      try {
         const res = await saveFarmerProfileToDb(payload);
-        if (res && res.status === 'success') {
-          setSyncState('synced');
-          setSyncNotice('Profile successfully synced to Kisan cloud database (Firestore).');
+
+        if (!res || res.status !== 'success') {
+          console.warn('Profile cloud sync did not report success.', res);
         }
-      } catch (err: any) {
-        const errMsg = err?.userMessage || err?.technicalDetails || '';
-        if (
-          errMsg.includes('Missing credentials') ||
-          errMsg.includes('Database connection uninitialized') ||
-          err?.statusCode === 500
-        ) {
-          // Backend Firestore credentials (firebase-key.json) are not configured on the server
-          setSyncState('pending_credentials');
-          setSyncNotice(
-            'Profile saved securely on this device. Cloud database sync is pending server Firebase credentials configuration.'
-          );
-        } else {
-          setSyncState('sync_error');
-          setSyncNotice('Profile saved locally. Cloud synchronization could not be reached.');
-        }
+      } catch (err) {
+        console.error('Profile cloud synchronization failed:', err);
       }
     }
   };
@@ -375,6 +397,28 @@ export const Profile: React.FC = () => {
     setGpsError(null);
     setIsEditing(false);
   };
+    const filteredStates = INDIAN_STATES_AND_UTS.filter((state) =>
+    state.toLowerCase().includes(stateSearch.trim().toLowerCase())
+  );
+
+    const selectedLocation = indiaLocations.states.find(
+    (state) => state.name === formData.state
+  );
+
+  const districtOptions = [...(selectedLocation?.districts ?? [])].sort(
+    (a, b) => a.localeCompare(b)
+  );
+
+  const filteredDistricts = districtOptions.filter((district) =>
+    district.toLowerCase().includes(districtSearch.trim().toLowerCase())
+  );
+
+  const showCustomDistrictInput =
+    districtIsCustom ||
+    Boolean(
+      formData.district &&
+      !districtOptions.includes(formData.district)
+    );
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
@@ -436,28 +480,6 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      {/* Cloud Sync Status */}
-      {syncState !== 'idle' && (
-        <div
-          className={`rounded-xl border p-4 flex items-center gap-3 text-sm shadow-xs ${
-            syncState === 'syncing'
-              ? 'border-blue-200 bg-blue-50 text-blue-900'
-              : syncState === 'synced'
-                ? 'border-green-300 bg-green-50 text-green-900'
-                : 'border-amber-300 bg-amber-50 text-amber-900'
-          }`}
-        >
-          <span>
-            {syncState === 'syncing'
-              ? 'Syncing to cloud…'
-              : syncNotice ??
-                (syncState === 'synced'
-                  ? 'Profile synced to cloud.'
-                  : '')}
-          </span>
-        </div>
-      )}
-
       {/* General error if any */}
       {validationErrors.general && (
         <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex items-center gap-3 text-red-900 text-sm">
@@ -510,10 +532,10 @@ export const Profile: React.FC = () => {
                   <div>
                     <input
                       type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="e.g. +91 98765 43210"
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
+                      value={user?.phone || formData.phone}
+                      readOnly
+                      aria-readonly="true"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-stone-100 text-stone-600 cursor-not-allowed text-sm"
                     />
                     {validationErrors.phone && (
                       <p className="text-xs text-red-600 mt-1">{validationErrors.phone}</p>
@@ -596,40 +618,266 @@ export const Profile: React.FC = () => {
 
               {/* District */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                <label
+                  htmlFor="district-search"
+                  className="block text-xs font-semibold text-stone-600 uppercase tracking-wider"
+                >
                   {t('districtLabel')}
                 </label>
+
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.district}
-                    onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                    placeholder="e.g. Varanasi"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                  />
+                  showCustomDistrictInput ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={formData.district}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            district: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter district name"
+                        className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDistrictIsCustom(false);
+                          setFormData((prev) => ({
+                            ...prev,
+                            district: '',
+                          }));
+                          setDistrictSearch('');
+                        }}
+                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline"
+                      >
+                        Choose from district list
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="relative"
+                      onBlur={(event) => {
+                        if (
+                          !event.currentTarget.contains(
+                            event.relatedTarget as Node | null
+                          )
+                        ) {
+                          setShowDistrictOptions(false);
+                          setDistrictSearch('');
+                        }
+                      }}
+                    >
+                      <input
+                        id="district-search"
+                        type="text"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-expanded={showDistrictOptions}
+                        aria-controls="district-options-list"
+                        autoComplete="off"
+                        disabled={!formData.state}
+                        value={
+                          showDistrictOptions
+                            ? districtSearch
+                            : formData.district
+                        }
+                        placeholder={
+                          formData.state
+                            ? 'Search or select district'
+                            : 'Select state first'
+                        }
+                        onFocus={() => {
+                          setDistrictSearch('');
+                          setShowDistrictOptions(true);
+                        }}
+                        onChange={(event) => {
+                          setDistrictSearch(event.target.value);
+                          setShowDistrictOptions(true);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            setShowDistrictOptions(false);
+                            setDistrictSearch('');
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 disabled:bg-stone-100 disabled:text-stone-400"
+                      />
+
+                      {showDistrictOptions && formData.state && (
+                        <div
+                          id="district-options-list"
+                          role="listbox"
+                          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-stone-200 bg-white p-1 shadow-lg"
+                        >
+                          {filteredDistricts.length > 0 ? (
+                            filteredDistricts.map((district) => (
+                              <button
+                                key={district}
+                                type="button"
+                                role="option"
+                                aria-selected={
+                                  formData.district === district
+                                }
+                                onMouseDown={(event) =>
+                                  event.preventDefault()
+                                }
+                                onClick={() => {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    district,
+                                  }));
+                                  setDistrictIsCustom(false);
+                                  setDistrictSearch('');
+                                  setShowDistrictOptions(false);
+                                }}
+                                className={`block w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-emerald-50 ${
+                                  formData.district === district
+                                    ? 'bg-emerald-50 font-semibold text-emerald-800'
+                                    : 'text-stone-800'
+                                }`}
+                              >
+                                {district}
+                              </button>
+                            ))
+                          ) : (
+                            <p className="px-3 py-3 text-sm text-stone-500">
+                              No matching district found.
+                            </p>
+                          )}
+
+                          <button
+                            type="button"
+                            onMouseDown={(event) =>
+                              event.preventDefault()
+                            }
+                            onClick={() => {
+                              setDistrictIsCustom(true);
+                              setFormData((prev) => ({
+                                ...prev,
+                                district: '',
+                              }));
+                              setDistrictSearch('');
+                              setShowDistrictOptions(false);
+                            }}
+                            className="mt-1 block w-full rounded-md border-t border-stone-200 px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Other / Not listed
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.district || <span className="text-stone-400 italic">Not set</span>}
+                    {profile.district || (
+                      <span className="text-stone-400 italic">
+                        Not set
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
               {/* State */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                <label
+                  htmlFor="state-search"
+                  className="block text-xs font-semibold text-stone-600 uppercase tracking-wider"
+                >
                   {t('stateLabel')}
                 </label>
+
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    placeholder="e.g. Uttar Pradesh"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                  />
+                  <div
+                    className="relative"
+                    onBlur={(event) => {
+                      if (
+                        !event.currentTarget.contains(
+                          event.relatedTarget as Node | null
+                        )
+                      ) {
+                        setShowStateOptions(false);
+                      }
+                    }}
+                  >
+                    <input
+                      id="state-search"
+                      type="text"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={showStateOptions}
+                      aria-controls="state-options-list"
+                      autoComplete="off"
+                      value={showStateOptions ? stateSearch : formData.state}
+                      placeholder="Search or select state / UT"
+                      onFocus={() => {
+                        setStateSearch(formData.state);
+                        setShowStateOptions(true);
+                      }}
+                      onChange={(event) => {
+                        setStateSearch(event.target.value);
+                        setShowStateOptions(true);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          setShowStateOptions(false);
+                          setStateSearch(formData.state);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
+                    />
+
+                    {showStateOptions && (
+                      <div
+                        id="state-options-list"
+                        role="listbox"
+                        className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-stone-200 bg-white p-1 shadow-lg"
+                      >
+                        {filteredStates.length > 0 ? (
+                          filteredStates.map((state) => (
+                            <button
+                              key={state}
+                              type="button"
+                              role="option"
+                              aria-selected={formData.state === state}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  state,
+                                  district: '',
+                                }));
+                                setDistrictIsCustom(false);
+                                setStateSearch(state);
+                                setShowStateOptions(false);
+                              }}
+                              className={`block w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-emerald-50 ${
+                                formData.state === state
+                                  ? 'bg-emerald-50 font-semibold text-emerald-800'
+                                  : 'text-stone-800'
+                              }`}
+                            >
+                              {state}
+                            </button>
+                          ))
+                        ) : (
+                          <p className="px-3 py-3 text-sm text-stone-500">
+                            No matching state or UT found.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.state || <span className="text-stone-400 italic">Not set</span>}
+                    {profile.state || (
+                      <span className="text-stone-400 italic">
+                        Not set
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
