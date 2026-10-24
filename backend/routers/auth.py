@@ -71,6 +71,13 @@ def unified_login(credentials: LoginRequest):
         )
 
     # 2. Check if Farmer
+    if not re.fullmatch(r"\d{10}", credentials.username_or_phone):
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number must be exactly 10 digits."
+        )
+    
+    # --- MISSING QUERY ADDED HERE ---
     farmer_query = db.collection("farmers").where("phone", "==", credentials.username_or_phone).limit(1).get()
     
     if len(farmer_query) > 0:
