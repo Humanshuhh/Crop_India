@@ -1,4 +1,5 @@
 import { apiPostJson, apiGetJson } from './apiClient';
+import type { FarmerProfile } from '../types/profile.types';
 
 /**
  * Backend Farmer schema mapping to /api/v1/farmer.
@@ -37,4 +38,20 @@ export async function saveFarmerProfileToDb(farmer: FarmerDbRecord): Promise<Far
  */
 export async function getFarmerProfileFromDb(farmerId: string): Promise<FarmerDbRecord> {
   return await apiGetJson<FarmerDbRecord>(`/api/v1/farmer/${encodeURIComponent(farmerId)}`);
+}
+
+/**
+ * Synchronously retrieves the saved local farmer profile from localStorage.
+ * Checks user-scoped storage key first, falling back to guest/legacy key.
+ */
+export function getSavedFarmerProfile(uid?: string | null): FarmerProfile | null {
+  if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
+  try {
+    const key = uid ? `kisan_farmer_profile_${uid}` : 'kisan_farmer_profile_guest';
+    const raw = localStorage.getItem(key) || (!uid ? localStorage.getItem('kisan_farmer_profile') : null);
+    if (!raw) return null;
+    return JSON.parse(raw) as FarmerProfile;
+  } catch {
+    return null;
+  }
 }

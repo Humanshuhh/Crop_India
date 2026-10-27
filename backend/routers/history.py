@@ -16,7 +16,7 @@ async def get_history(
     limit_count: int = Query(25, ge=1, le=100, description="Max history entries to return"),
 ):
     """
-    Get combined diagnostic (leaf scans) and soil advisory history for a farmer,
+    Get combined diagnostic (leaf scans) and soil advisory history for an authenticated farmer,
     ordered from newest to oldest.
     """
     db = get_firestore_db()
@@ -24,15 +24,17 @@ async def get_history(
         logger.warning("Firestore database client is unavailable; returning empty history list.")
         return []
 
+    # Enforce strict user-specific isolation: never return history for demo, guest, or unauthenticated fallbacks
+    clean_farmer_id = (farmer_id or "").strip()
+    if not clean_farmer_id or clean_farmer_id.lower() in ("default_farmer", "guest", "all", "none", "null"):
+        return []
+
     combined_history: List[Dict[str, Any]] = []
 
     try:
-        # 1. Fetch Leaf Diagnostics for this farmer
+        # 1. Fetch Leaf Diagnostics for this authenticated farmer
         leaf_ref = db.collection("leaf_diagnostics")
-        if farmer_id and farmer_id != "all":
-            leaf_query = leaf_ref.where("farmer_id", "==", farmer_id)
-        else:
-            leaf_query = leaf_ref
+        leaf_query = leaf_ref.where("farmer_id", "==", clean_farmer_id)
 
         leaf_docs = (
             leaf_query.order_by("created_at", direction=firestore.Query.DESCENDING)
@@ -46,12 +48,9 @@ async def get_history(
             item["category"] = "LEAF_DISEASE"
             combined_history.append(item)
 
-        # 2. Fetch Soil Health Records for this farmer
+        # 2. Fetch Soil Health Records for this authenticated farmer
         soil_ref = db.collection("soil_health_records")
-        if farmer_id and farmer_id != "all":
-            soil_query = soil_ref.where("farmer_id", "==", farmer_id)
-        else:
-            soil_query = soil_ref
+        soil_query = soil_ref.where("farmer_id", "==", clean_farmer_id)
 
         soil_docs = (
             soil_query.order_by("created_at", direction=firestore.Query.DESCENDING)

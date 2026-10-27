@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Phone, User as UserIcon, MapPin, Map, RotateCw, Eye, EyeOff } from 'lucide-react';
+import { Lock, Phone, User as UserIcon, MapPin, Map, RotateCw, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ErrorMessage } from '../components/common/ErrorMessage';
+import indiaLocations from '../data/indiaLocations.json';
+
+const INDIAN_STATES_AND_UTS = indiaLocations.states
+  .map((state) => state.name)
+  .sort((a, b) => a.localeCompare(b));
 
 export const Signup: React.FC = () => {
   const { signUpWithPhone, error, clearAuthError } = useAuth();
@@ -14,7 +19,7 @@ export const Signup: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [stateName, setStateName] = useState('');
-  const [district, setDistrict] = useState('');
+  const [city, setCity] = useState('');
   const [mpin, setMpin] = useState('');
   const [confirmMpin, setConfirmMpin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,6 +27,13 @@ export const Signup: React.FC = () => {
   
   const [clientError, setClientError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Available cities/districts populated dynamically from the verified Indian locations dataset
+  const availableCities = useMemo(() => {
+    if (!stateName) return [];
+    const foundState = indiaLocations.states.find((s) => s.name === stateName);
+    return foundState ? [...foundState.districts].sort((a, b) => a.localeCompare(b)) : [];
+  }, [stateName]);
 
   // Post-signup redirect pattern per Addendum §3
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -31,8 +43,23 @@ export const Signup: React.FC = () => {
     clearAuthError();
     setClientError(null);
 
-     if (!/^\d{10}$/.test(phone)) {
+    if (!name.trim()) {
+      setClientError('Please enter your full name.');
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
       setClientError('Phone number must be exactly 10 digits.');
+      return;
+    }
+
+    if (!stateName) {
+      setClientError('Please select your state.');
+      return;
+    }
+
+    if (!city) {
+      setClientError('Please select your city.');
       return;
     }
 
@@ -49,10 +76,10 @@ export const Signup: React.FC = () => {
     setLoading(true);
     try {
       await signUpWithPhone({
-        name,
+        name: name.trim(),
         phone,
         state: stateName,
-        district,
+        district: city,
         mpin,
         language
       });
@@ -68,9 +95,13 @@ export const Signup: React.FC = () => {
     <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 py-12">
       <div className="w-full max-w-md bg-white rounded-3xl border border-stone-200 p-8 shadow-sm space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-emerald-100 text-emerald-800">
-            <Sprout className="w-8 h-8" aria-hidden="true" />
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <img
+              src="/images/kisan-sahayak-logo.png"
+              alt={t('appTitle')}
+              className="w-16 h-16 object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
             Create {t('appTitle')} Account
@@ -87,7 +118,7 @@ export const Signup: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="signup-name" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Full Name
+              {t('signupFullNameLabel')}
             </label>
             <div className="relative">
               <UserIcon className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -99,14 +130,14 @@ export const Signup: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="Ramesh Kumar"
+                placeholder={t('signupFullNamePlaceholder')}
               />
             </div>
           </div>
 
           <div>
             <label htmlFor="signup-phone" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Phone Number
+              {t('signupPhoneLabel')}
             </label>
             <div className="relative">
               <Phone className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -118,52 +149,73 @@ export const Signup: React.FC = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="10-digit phone number"
+                placeholder={t('signupPhonePlaceholder')}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="signup-state" className="block text-xs font-semibold text-stone-700 mb-1.5">
-                State
+                {t('signupStateLabel')}
               </label>
               <div className="relative">
                 <Map className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
+                <select
                   id="signup-state"
-                  type="text"
                   required
                   value={stateName}
-                  onChange={(e) => setStateName(e.target.value)}
-                  className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                  placeholder="Maharashtra"
-                />
+                  onChange={(e) => {
+                    const nextState = e.target.value;
+                    setStateName(nextState);
+                    setCity('');
+                  }}
+                  className="w-full min-h-12 pl-10 pr-9 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 appearance-none cursor-pointer"
+                >
+                  <option value="">{t('signupSelectState')}</option>
+                  {INDIAN_STATES_AND_UTS.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
               </div>
             </div>
 
             <div>
-              <label htmlFor="signup-district" className="block text-xs font-semibold text-stone-700 mb-1.5">
-                District
+              <label htmlFor="signup-city" className="block text-xs font-semibold text-stone-700 mb-1.5">
+                {t('signupCityLabel')}
               </label>
               <div className="relative">
                 <MapPin className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  id="signup-district"
-                  type="text"
+                <select
+                  id="signup-city"
                   required
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="w-full min-h-12 pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                  placeholder="Pune"
-                />
+                  disabled={!stateName}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className={`w-full min-h-12 pl-10 pr-9 py-2.5 rounded-xl border text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 appearance-none ${
+                    !stateName
+                      ? 'bg-stone-100 text-stone-400 cursor-not-allowed border-stone-200'
+                      : 'bg-stone-50 focus:bg-white cursor-pointer border-stone-300'
+                  }`}
+                >
+                  <option value="">{t('signupSelectCity')}</option>
+                  {availableCities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
               </div>
             </div>
           </div>
 
           <div>
             <label htmlFor="signup-mpin" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Create 4-Digit MPIN
+              {t('signupCreateMpinLabel')}
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -176,7 +228,7 @@ export const Signup: React.FC = () => {
                 value={mpin}
                 onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="••••"
+                placeholder={t('signupCreateMpinPlaceholder')}
               />
               <button
                 type="button"
@@ -196,7 +248,7 @@ export const Signup: React.FC = () => {
 
           <div>
             <label htmlFor="signup-confirm-mpin" className="block text-xs font-semibold text-stone-700 mb-1.5">
-              Confirm 4-Digit MPIN
+              {t('signupConfirmMpinLabel')}
             </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -209,7 +261,7 @@ export const Signup: React.FC = () => {
                 value={confirmMpin}
                 onChange={(e) => setConfirmMpin(e.target.value.replace(/\D/g, ''))}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                placeholder="••••"
+                placeholder={t('signupConfirmMpinPlaceholder')}
               />
               <button
                 type="button"
@@ -235,16 +287,16 @@ export const Signup: React.FC = () => {
             {loading ? (
               <>
                 <RotateCw className="w-4 h-4 animate-spin" />
-                <span>Creating profile...</span>
+                <span>{t('signupCreating')}</span>
               </>
             ) : (
-              <span>Create Account</span>
+              <span>{t('signupCreateBtn')}</span>
             )}
           </button>
         </form>
 
         <div className="pt-4 border-t border-stone-100 text-center text-xs text-stone-600">
-          Already have an account?{' '}
+          {t('signupHaveAccount')}{' '}
           <Link
             to="/login"
             state={{ from: { pathname: from } }}

@@ -1,4 +1,3 @@
-
 import { apiGetJson, normalizeApiError } from './apiClient';
 import type { HistoryItem } from '../types/history.types';
 
@@ -68,13 +67,21 @@ function mapBackendHistoryRecord(raw: BackendHistoryRecord): HistoryItem {
 
 /**
  * Retrieves and maps the authenticated farmer's history records.
+ * Supports limitCount parameter to retrieve up to 100 historical assessments.
  */
 export async function getFarmerHistory(
-  farmerId: string
+  farmerId: string,
+  limitCount: number = 25
 ): Promise<HistoryItem[]> {
+  const cleanId = (farmerId || '').trim();
+  if (!cleanId || cleanId.toLowerCase() === 'default_farmer' || cleanId.toLowerCase() === 'guest' || cleanId.toLowerCase() === 'all') {
+    return [];
+  }
+
   try {
+    const params = new URLSearchParams({ limit_count: String(limitCount) });
     const records = await apiGetJson<BackendHistoryRecord[]>(
-      `/api/v1/history/${encodeURIComponent(farmerId)}`
+      `/api/v1/history/${encodeURIComponent(farmerId)}?${params}`
     );
 
     if (!Array.isArray(records)) {

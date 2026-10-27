@@ -191,7 +191,7 @@ plant_diagnostics_engine = PlantDiagnosticsEngine()
 async def diagnose_leaf_endpoint(
     image: Optional[UploadFile] = File(None),
     file: Optional[UploadFile] = File(None),
-    farmer_id: Optional[str] = Form("default_farmer"),
+    farmer_id: Optional[str] = Form(None),
     target_language: Optional[str] = Form("hi"),
     latitude: Optional[str] = Form(None),
     longitude: Optional[str] = Form(None),
@@ -245,7 +245,7 @@ async def diagnose_leaf_endpoint(
 
         # 2. Persist diagnosis directly into Firestore history
         save_leaf_diagnostic(
-            farmer_id=farmer_id or "default_farmer",
+            farmer_id=farmer_id or "guest",
             diagnostic_id=None,
             diagnosis=result,
             latitude=parsed_lat,

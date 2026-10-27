@@ -3,6 +3,7 @@ export interface FarmerProfile {
   phone: string;
   email?: string;
   farmerId?: string;
+  avatarUrl?: string;
   village: string;
   district: string;
   state: string;

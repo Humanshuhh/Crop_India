@@ -4,6 +4,7 @@ export interface AppUser {
   uid: string;
   phone: string;
   name?: string;
+  avatarUrl?: string;
 }
 
 export interface AuthState {
@@ -28,4 +29,6 @@ export interface AuthContextType extends AuthState {
   signUpWithPhone: (data: SignupData) => Promise<void>;
   signOutUser: () => Promise<void>;
   clearAuthError: () => void;
+  updateUserName: (name: string) => void;
+  updateUserAvatar: (avatarUrl: string) => void;
 }

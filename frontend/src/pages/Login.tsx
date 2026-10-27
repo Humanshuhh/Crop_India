@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Sprout, Lock, Phone, RotateCw, Eye, EyeOff } from 'lucide-react';
+import { Lock, Phone, RotateCw, Eye, EyeOff, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ErrorMessage } from '../components/common/ErrorMessage';
@@ -16,6 +16,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
+  const [showForgotNotice, setShowForgotNotice] = useState(false);
 
   // Post-login redirect pattern per Addendum §3
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -24,6 +25,7 @@ export const Login: React.FC = () => {
     e.preventDefault();
     clearAuthError();
     setClientError(null);
+    setShowForgotNotice(false);
     
     if (!/^\d{10}$/.test(phone)) {
       setClientError('Phone number must be exactly 10 digits.');
@@ -50,9 +52,13 @@ export const Login: React.FC = () => {
     <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 py-12">
       <div className="w-full max-w-md bg-white rounded-3xl border border-stone-200 p-8 shadow-sm space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-emerald-100 text-emerald-800">
-            <Sprout className="w-8 h-8" aria-hidden="true" />
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <img
+              src="/images/kisan-sahayak-logo.png"
+              alt={t('appTitle')}
+              className="w-16 h-16 object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
             {t('navLogin')} to {t('appTitle')}
@@ -99,7 +105,10 @@ export const Login: React.FC = () => {
                 maxLength={4}
                 required
                 value={mpin}
-                onChange={(e) => setMpin(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  setMpin(e.target.value.replace(/\D/g, ''));
+                  if (showForgotNotice) setShowForgotNotice(false);
+                }}
                 className="w-full min-h-12 pl-10 pr-12 py-2.5 rounded-xl border border-stone-300 bg-stone-50 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
                 placeholder="••••"
               />
@@ -117,6 +126,38 @@ export const Login: React.FC = () => {
                 )}
               </button>
             </div>
+
+            {/* Forgot PIN Action */}
+            <div className="flex justify-end mt-1.5">
+              <button
+                type="button"
+                onClick={() => setShowForgotNotice(true)}
+                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded px-1 py-0.5 transition-colors"
+              >
+                {t('loginForgotPin')}
+              </button>
+            </div>
+
+            {/* Temporary PIN Recovery Notice */}
+            {showForgotNotice && (
+              <div
+                role="status"
+                className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shadow-2xs"
+              >
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-amber-700 shrink-0" aria-hidden="true" />
+                  <span className="font-medium">{t('loginForgotPinNotice')}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotNotice(false)}
+                  className="text-amber-700 hover:text-amber-900 font-bold p-1 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 text-sm leading-none"
+                  aria-label="Dismiss notice"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
           </div>
 
           <button

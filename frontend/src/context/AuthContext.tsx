@@ -1,43 +1,87 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { AuthContextType, AppUser, UserRole, SignupData } from '../types/auth.types';
 import { loginApi, signupApi } from '../services/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [roleLoading, setRoleLoading] = useState<boolean>(true);
+function getInitialSession(): { user: AppUser | null; role: UserRole | null } {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return { user: null, role: null };
+    }
+    const token = localStorage.getItem('kisan_auth_token');
+    const uid = localStorage.getItem('kisan_user_id');
+    const userRole = localStorage.getItem('kisan_role') as UserRole;
+    const phone = localStorage.getItem('kisan_phone');
+    const name = localStorage.getItem('kisan_name');
+    let avatarUrl = localStorage.getItem('kisan_avatar') || undefined;
 
-  // Initialize from local storage on mount
-  useEffect(() => {
-    const initAuth = () => {
+    if (!avatarUrl && uid) {
       try {
-        const token = localStorage.getItem('kisan_auth_token');
-        const uid = localStorage.getItem('kisan_user_id');
-        const userRole = localStorage.getItem('kisan_role') as UserRole;
-        const phone = localStorage.getItem('kisan_phone');
-        const name = localStorage.getItem('kisan_name');
-
-        if (token && uid && userRole && phone) {
-          setUser({ uid, phone, name: name || undefined });
-          setRole(userRole);
-        } else {
-          setUser(null);
-          setRole(null);
+        const savedProfile = localStorage.getItem(`kisan_farmer_profile_${uid}`);
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed.avatarUrl) {
+            avatarUrl = String(parsed.avatarUrl);
+            localStorage.setItem('kisan_avatar', avatarUrl);
+          }
         }
-      } catch (err) {
-        console.error('[AuthProvider] Failed to load session from local storage', err);
-      } finally {
-        setLoading(false);
-        setRoleLoading(false);
-      }
-    };
+      } catch {}
+    }
 
-    initAuth();
-  }, []);
+    if (token && uid && userRole && phone) {
+      return {
+        user: { uid, phone, name: name || undefined, avatarUrl },
+        role: userRole,
+      };
+    }
+  } catch (err) {
+    console.error('[AuthProvider] Failed to load session from local storage', err);
+  }
+  return { user: null, role: null };
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [initialSession] = useState(getInitialSession);
+  const [user, setUser] = useState<AppUser | null>(initialSession.user);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<UserRole | null>(initialSession.role);
+  const [roleLoading, setRoleLoading] = useState<boolean>(false);
+
+  const updateUserName = (name: string) => {
+    const normalizedName = name.trim();
+
+    try {
+      localStorage.setItem('kisan_name', normalizedName);
+    } catch {
+      // The in-memory update should still work if storage is unavailable.
+    }
+
+    setUser((currentUser) =>
+      currentUser
+        ? { ...currentUser, name: normalizedName || undefined }
+        : currentUser
+    );
+  };
+
+  const updateUserAvatar = (avatarUrl: string) => {
+    try {
+      if (avatarUrl && avatarUrl.trim()) {
+        localStorage.setItem('kisan_avatar', avatarUrl);
+      }
+    } catch {
+      // The in-memory update should still work if storage is unavailable.
+    }
+
+    setUser((currentUser) =>
+      currentUser
+        ? { ...currentUser, avatarUrl: avatarUrl || currentUser.avatarUrl }
+        : currentUser
+    );
+  };
+
+  // Session is synchronously initialized via getInitialSession() to prevent auth flicker
 
   const signInWithPhone = async (phone: string, mpin: string) => {
     setError(null);
@@ -53,18 +97,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('kisan_role', newRole);
       localStorage.setItem('kisan_phone', phone);
       
-      // --- NEW: Safely store the name if the backend provides it ---
       if (response.name) {
         localStorage.setItem('kisan_name', response.name);
       } else {
         localStorage.removeItem('kisan_name');
       }
 
-      // --- NEW: Pass the name into the active React session ---
+      let avatarUrl = localStorage.getItem('kisan_avatar') || undefined;
+      if (!avatarUrl) {
+        try {
+          const savedProfile = localStorage.getItem(`kisan_farmer_profile_${response.user_id}`);
+          if (savedProfile) {
+            const parsed = JSON.parse(savedProfile);
+            if (parsed.avatarUrl) {
+              avatarUrl = String(parsed.avatarUrl);
+              localStorage.setItem('kisan_avatar', avatarUrl);
+            }
+          }
+        } catch {}
+      }
+
       setUser({ 
         uid: response.user_id, 
         phone, 
-        name: response.name 
+        name: response.name,
+        avatarUrl,
       });
       
       setRole(newRole);
@@ -120,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('kisan_role');
       localStorage.removeItem('kisan_phone');
       localStorage.removeItem('kisan_name');
+      localStorage.removeItem('kisan_avatar');
       
       setUser(null);
       setRole(null);
@@ -143,6 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithPhone,
         signOutUser,
         clearAuthError,
+        updateUserName,
+        updateUserAvatar,
       }}
     >
       {children}
