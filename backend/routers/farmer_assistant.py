@@ -3,6 +3,9 @@ import io
 import base64
 import asyncio
 import logging
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from typing import Optional, List
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -25,6 +28,7 @@ logger = logging.getLogger("cropindia.farmer_assistant")
 router = APIRouter(prefix="/api/v1/farmer", tags=["Farmer Multimodal Assistant"])
 
 # Initialize Google GenAI client
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 client = genai.Client()
 
 # Resilient Model Failover Cascade
