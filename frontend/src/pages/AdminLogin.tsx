@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sprout, Lock, Mail, Eye, EyeOff, RotateCw } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, RotateCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ErrorMessage } from '../components/common/ErrorMessage';
 
@@ -34,8 +34,8 @@ export const AdminLogin: React.FC = () => {
     <div className="min-h-[75vh] flex items-center justify-center px-4 sm:px-6 py-12">
       <div className="w-full max-w-md bg-white rounded-3xl border border-stone-200 p-8 shadow-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-emerald-100 text-emerald-800">
-            <Sprout className="w-8 h-8" aria-hidden="true" />
+          <div className="flex justify-center">
+            <img src="/images/kisan-sahayak-logo.png" alt="Kisan Sahayak" className="w-16 h-16 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
             Admin Login

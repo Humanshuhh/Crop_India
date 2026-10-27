@@ -1,4 +1,3 @@
-
 /**
  * Multimodal Farmer Assistant Types
  * Contract for POST /api/v1/farmer/query endpoint.
@@ -22,6 +21,8 @@ export interface AssistantMessage {
   timestamp: string;
   spokenSummary?: string;
   isError?: boolean;
+  retryQuery?: string;
+  retryLanguage?: string;
   actionableSteps?: string[];
   sources?: string[];
   relatedTopics?: string[];
@@ -29,7 +30,15 @@ export interface AssistantMessage {
   actionIntent?: ActionIntent;
   detailedResponse?: string;
   voiceAdvisory?: string;
+}
 
+export interface Conversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: AssistantMessage[];
+  language?: string;
 }
 
 export interface FarmerQueryRequest {

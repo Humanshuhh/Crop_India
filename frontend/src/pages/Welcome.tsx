@@ -30,10 +30,12 @@ export const Welcome: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-stone-50 to-emerald-100 flex flex-col items-center justify-center px-4 py-8 animate-fadeIn">
       {/* Logo / Brand */}
       <div className="mb-6 flex flex-col items-center gap-2">
-        <div className="w-16 h-16 rounded-2xl bg-emerald-700 flex items-center justify-center shadow-lg">
-          <span className="text-3xl">🌾</span>
-        </div>
-        <span className="text-emerald-800 font-bold text-xl tracking-wide">Crop India</span>
+        <img
+          src="/images/kisan-sahayak-logo.png"
+          alt={t('appTitle')}
+          className="w-20 h-20 object-contain drop-shadow-md"
+        />
+        <span className="text-emerald-800 font-bold text-xl tracking-wide">{t('appTitle')}</span>
       </div>
 
       {/* Greeting */}

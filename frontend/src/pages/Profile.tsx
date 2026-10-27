@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
   MapPin,
   Trees,
   Compass,
   FileText,
-  Edit3,
   Save,
+  Edit3,
   CheckCircle2,
   AlertCircle,
   Navigation,
-  Info,
   ShieldCheck,
   ArrowRight,
   RefreshCw,
@@ -20,6 +19,10 @@ import {
   Hash,
   X,
   Plus,
+  Camera,
+  RotateCcw,
+  Sparkles,
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -30,6 +33,7 @@ import {
   getFarmerProfileFromDb,
   type FarmerDbRecord,
 } from '../services/farmer';
+import { reverseGeocode } from '../services/geocoding';
 
 const COMMON_CROPS = [
   'Wheat',
@@ -66,25 +70,96 @@ const INDIAN_STATES_AND_UTS = indiaLocations.states
   .map((state) => state.name)
   .sort((a, b) => a.localeCompare(b));
 
+/**
+ * Safely compresses and resizes a user-selected profile image to a compact JPEG data URL (max 256x256).
+ * This keeps the base64 string small (~15-25 KB), preventing localStorage QuotaExceededError
+ * and ensuring instantaneous persistence across page reloads and routes.
+ */
+function processProfileImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return reject(new Error('Selected file is not an image.'));
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to load image.'));
+      img.onload = () => {
+        try {
+          const maxDim = 256;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            return resolve(reader.result as string);
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(compressedDataUrl);
+        } catch {
+          resolve(reader.result as string);
+        }
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUserName, updateUserAvatar, signOutUser } = useAuth();
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
+  isEditingRef.current = isEditing;
+
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsSuccessMsg, setGpsSuccessMsg] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [newCropInput, setNewCropInput] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [customCityMode, setCustomCityMode] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const storageKey = user ? `kisan_farmer_profile_${user.uid}` : '';
 
   const getInitialProfile = (): FarmerProfile => {
+    const storedAvatar =
+      user?.avatarUrl ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+      '';
+
     return {
       fullName: user?.name || '',
       phone: user?.phone || '',
       email: '',
       farmerId: user ? user.uid : '',
+      avatarUrl: storedAvatar,
       village: '',
       district: '',
       state: '',
@@ -100,67 +175,144 @@ export const Profile: React.FC = () => {
 
   const [profile, setProfile] = useState<FarmerProfile>(getInitialProfile);
   const [formData, setFormData] = useState<FarmerProfile>(getInitialProfile);
-  const [districtIsCustom, setDistrictIsCustom] = useState(false);
-  const [districtSearch, setDistrictSearch] = useState('');
-  const [showDistrictOptions, setShowDistrictOptions] = useState(false);
-  const [stateSearch, setStateSearch] = useState('');
-  const [showStateOptions, setShowStateOptions] = useState(false);
 
-  // Load profile from localStorage whenever user changes
+  // Load profile from localStorage whenever user changes and merge with remote database
   useEffect(() => {
     if (!user || !storageKey) return;
 
     let currentFarmerId = '';
+    let localProfile: FarmerProfile | null = null;
+    const storedAvatar =
+      user.avatarUrl ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+      '';
+
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
-        const parsed = JSON.parse(saved) as FarmerProfile;
-        parsed.phone = user.phone || parsed.phone || '';
-        parsed.farmerId = user.uid;
-        currentFarmerId = parsed.farmerId;
-        setProfile(parsed);
-        setFormData(parsed);
+        localProfile = JSON.parse(saved) as FarmerProfile;
+        localProfile.phone = user.phone || localProfile.phone || '';
+        localProfile.farmerId = user.uid;
+
+        // Ensure avatarUrl is populated from stored avatar if missing
+        if (!localProfile.avatarUrl && storedAvatar) {
+          localProfile.avatarUrl = storedAvatar;
+        }
+        if (localProfile.avatarUrl && !user.avatarUrl) {
+          updateUserAvatar(localProfile.avatarUrl);
+        }
+
+        currentFarmerId = localProfile.farmerId;
+        setProfile(localProfile);
+        setFormData(localProfile);
       } else {
         const initial = getInitialProfile();
+        if (storedAvatar) {
+          initial.avatarUrl = storedAvatar;
+        }
         currentFarmerId = initial.farmerId || '';
         setProfile(initial);
         setFormData(initial);
       }
     } catch {
       const fallback = getInitialProfile();
+      if (storedAvatar) {
+        fallback.avatarUrl = storedAvatar;
+      }
       currentFarmerId = fallback.farmerId || '';
       setProfile(fallback);
       setFormData(fallback);
     }
 
-    // Connect to GET /db/farmer/{farmer_id}
+    // Connect to GET /api/v1/farmer/{farmer_id}
     if (currentFarmerId) {
       getFarmerProfileFromDb(currentFarmerId)
         .then((cloudData) => {
           if (cloudData && cloudData.name) {
             setProfile((prev) => {
+              const effectiveAvatar =
+                prev.avatarUrl ||
+                localProfile?.avatarUrl ||
+                user?.avatarUrl ||
+                (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+                '';
+
               const merged: FarmerProfile = {
-                ...prev,
-                fullName: cloudData.name || prev.fullName,
-                phone: cloudData.phone || prev.phone,
-                state: cloudData.state || prev.state,
-                district: cloudData.district || prev.district,
+                fullName: cloudData.name || localProfile?.fullName || prev.fullName,
+                phone: cloudData.phone || localProfile?.phone || prev.phone,
+                email: localProfile?.email || prev.email,
+                farmerId: cloudData.farmer_id || localProfile?.farmerId || prev.farmerId,
+                avatarUrl: effectiveAvatar,
+                village: cloudData.village || cloudData.district || localProfile?.village || prev.village,
+                district: cloudData.district || localProfile?.district || prev.district,
+                state: cloudData.state || localProfile?.state || prev.state,
+                latitude: (cloudData.latitude !== undefined && cloudData.latitude !== null)
+                  ? String(cloudData.latitude)
+                  : (localProfile?.latitude ?? prev.latitude),
+                longitude: (cloudData.longitude !== undefined && cloudData.longitude !== null)
+                  ? String(cloudData.longitude)
+                  : (localProfile?.longitude ?? prev.longitude),
+                landArea: (cloudData.land_area !== undefined && cloudData.land_area !== null)
+                  ? String(cloudData.land_area)
+                  : (localProfile?.landArea ?? prev.landArea),
+                landUnit: localProfile?.landUnit || prev.landUnit || 'acres',
+                primaryCrops: (cloudData.primary_crops !== undefined && cloudData.primary_crops !== null)
+                  ? cloudData.primary_crops
+                  : (localProfile?.primaryCrops ?? prev.primaryCrops),
+                agroClimaticZone: cloudData.agro_climatic_zone || localProfile?.agroClimaticZone || prev.agroClimaticZone,
+                updatedAt: localProfile?.updatedAt || new Date().toISOString(),
               };
-              localStorage.setItem(storageKey, JSON.stringify(merged));
+
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(merged));
+                if (effectiveAvatar) {
+                  localStorage.setItem('kisan_avatar', effectiveAvatar);
+                }
+              } catch {}
+
               return merged;
             });
-            setFormData((prev) => ({
-              ...prev,
-              fullName: cloudData.name || prev.fullName,
-              phone: cloudData.phone || prev.phone,
-              state: cloudData.state || prev.state,
-              district: cloudData.district || prev.district,
-            }));
+
+            // Only update formData if not currently in edit mode to avoid clobbering active edits
+            if (!isEditingRef.current) {
+              setFormData((prev) => {
+                const effectiveAvatar =
+                  prev.avatarUrl ||
+                  localProfile?.avatarUrl ||
+                  user?.avatarUrl ||
+                  (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+                  '';
+
+                return {
+                  ...prev,
+                  fullName: cloudData.name || localProfile?.fullName || prev.fullName,
+                  phone: cloudData.phone || localProfile?.phone || prev.phone,
+                  avatarUrl: effectiveAvatar,
+                  state: cloudData.state || localProfile?.state || prev.state,
+                  district: cloudData.district || localProfile?.district || prev.district,
+                  village: cloudData.village || cloudData.district || localProfile?.village || prev.village,
+                  latitude: (cloudData.latitude !== undefined && cloudData.latitude !== null)
+                    ? String(cloudData.latitude)
+                    : (localProfile?.latitude ?? prev.latitude),
+                  longitude: (cloudData.longitude !== undefined && cloudData.longitude !== null)
+                    ? String(cloudData.longitude)
+                    : (localProfile?.longitude ?? prev.longitude),
+                  landArea: (cloudData.land_area !== undefined && cloudData.land_area !== null)
+                    ? String(cloudData.land_area)
+                    : (localProfile?.landArea ?? prev.landArea),
+                  landUnit: localProfile?.landUnit || prev.landUnit || 'acres',
+                  primaryCrops: (cloudData.primary_crops !== undefined && cloudData.primary_crops !== null)
+                    ? cloudData.primary_crops
+                    : (localProfile?.primaryCrops ?? prev.primaryCrops),
+                  agroClimaticZone: cloudData.agro_climatic_zone || localProfile?.agroClimaticZone || prev.agroClimaticZone,
+                };
+              });
+            }
           }
         })
         .catch(() => {
-        // Keep the locally saved profile if cloud data is unavailable.
-      });
+          // Keep local profile if cloud data is unavailable or 404
+        });
     }
   }, [user, storageKey]);
 
@@ -202,7 +354,27 @@ export const Profile: React.FC = () => {
     );
   }
 
-  // GPS Device Detection
+  // Active profile record based on edit state
+  const activeRecord = isEditing ? formData : profile;
+
+  // Districts for selected state
+  const selectedStateObj = indiaLocations.states.find(
+    (s) => s.name === activeRecord.state
+  );
+  const stateDistricts = selectedStateObj
+    ? [...selectedStateObj.districts].sort((a, b) => a.localeCompare(b))
+    : [];
+
+  // Unified updater for individual form fields to prevent stale closure overwrites
+  const updateFormField = <K extends keyof FarmerProfile>(field: K, value: FarmerProfile[K]) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === 'district' ? { village: value as string } : {}),
+    }));
+  };
+
+  // GPS Device Detection + Reverse Geocoding
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setGpsError('Geolocation is not supported by your browser.');
@@ -211,26 +383,53 @@ export const Profile: React.FC = () => {
 
     setGpsLoading(true);
     setGpsError(null);
+    setGpsSuccessMsg(null);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude.toFixed(5);
-        const lon = position.coords.longitude.toFixed(5);
-        setFormData((prev) => ({
-          ...prev,
-          latitude: lat,
-          longitude: lon,
-        }));
-        setGpsLoading(false);
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const latStr = lat.toFixed(5);
+        const lonStr = lon.toFixed(5);
+
+        try {
+          const geo = await reverseGeocode(lat, lon);
+          setFormData((prev) => ({
+            ...prev,
+            latitude: latStr,
+            longitude: lonStr,
+            state: geo?.state || prev.state,
+            district: geo?.city || prev.district,
+            village: geo?.city || prev.district,
+          }));
+          setCustomCityMode(false);
+          if (geo?.city && geo?.state) {
+            setGpsSuccessMsg(`Location detected: ${geo.city}, ${geo.state}`);
+          } else if (geo?.state) {
+            setGpsSuccessMsg(`State detected: ${geo.state} (${latStr}° N, ${lonStr}° E)`);
+          } else {
+            setGpsSuccessMsg(`Coordinates detected: ${latStr}° N, ${lonStr}° E`);
+          }
+        } catch (err) {
+          console.warn('Reverse geocode error:', err);
+          setFormData((prev) => ({
+            ...prev,
+            latitude: latStr,
+            longitude: lonStr,
+          }));
+          setGpsSuccessMsg(`Coordinates detected: ${latStr}° N, ${lonStr}° E`);
+        } finally {
+          setGpsLoading(false);
+        }
       },
       (error) => {
         let msg = 'Unable to determine device location.';
         if (error.code === error.PERMISSION_DENIED) {
-          msg = 'Location permission was denied. Please allow location access in your browser or enter coordinates manually.';
+          msg = 'Location permission was denied. Please allow location access or select State and City below.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          msg = 'Location signals are currently unavailable. Please enter coordinates manually.';
+          msg = 'Location signals are currently unavailable. Please select State and City manually.';
         } else if (error.code === error.TIMEOUT) {
-          msg = 'Location request timed out. Please try again.';
+          msg = 'Location request timed out. Please try again or select State and City manually.';
         }
         setGpsError(msg);
         setGpsLoading(false);
@@ -239,7 +438,50 @@ export const Profile: React.FC = () => {
     );
   };
 
-  // Crops parsing helper
+  // Avatar Upload Handler: compresses image to max 256x256, immediately updates state, Navbar, and persists
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so re-selecting same file works
+    e.target.value = '';
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Avatar image size must be under 5MB.');
+      return;
+    }
+
+    try {
+      const optimizedAvatar = await processProfileImage(file);
+
+      // 1. Immediately update form and profile state
+      setFormData((prev) => ({ ...prev, avatarUrl: optimizedAvatar }));
+      setProfile((prev) => ({ ...prev, avatarUrl: optimizedAvatar }));
+
+      // 2. Immediately update application-wide avatar in navbar
+      updateUserAvatar(optimizedAvatar);
+
+      // 3. Immediately persist to localStorage
+      try {
+        localStorage.setItem('kisan_avatar', optimizedAvatar);
+        if (storageKey) {
+          const existingSaved = localStorage.getItem(storageKey);
+          if (existingSaved) {
+            const parsed = JSON.parse(existingSaved);
+            parsed.avatarUrl = optimizedAvatar;
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          }
+        }
+      } catch (storageErr) {
+        console.warn('Failed to persist avatar to localStorage:', storageErr);
+      }
+    } catch (err: any) {
+      console.error('Failed to process avatar image:', err);
+      alert(err?.message || 'Could not process the selected image.');
+    }
+  };
+
+  // Crops parsing helpers
   const formCropsList = formData.primaryCrops
     ? formData.primaryCrops.split(',').map((c) => c.trim()).filter(Boolean)
     : [];
@@ -248,88 +490,116 @@ export const Profile: React.FC = () => {
     ? profile.primaryCrops.split(',').map((c) => c.trim()).filter(Boolean)
     : [];
 
-  // Add a crop tag
+  // Add a crop tag using functional state derivation
   const handleAddCrop = (crop: string) => {
     const trimmed = crop.trim();
     if (!trimmed) return;
-    if (formCropsList.includes(trimmed)) return;
-    const updated = [...formCropsList, trimmed].join(', ');
-    setFormData((prev) => ({
-      ...prev,
-      primaryCrops: updated,
-    }));
+    setFormData((prev) => {
+      const currentList = prev.primaryCrops
+        ? prev.primaryCrops.split(',').map((c) => c.trim()).filter(Boolean)
+        : [];
+      if (currentList.includes(trimmed)) return prev;
+      return {
+        ...prev,
+        primaryCrops: [...currentList, trimmed].join(', '),
+      };
+    });
     setNewCropInput('');
   };
 
-  // Remove a crop tag
+  // Remove a crop tag using functional state derivation
   const handleRemoveCrop = (cropToRemove: string) => {
-    const updated = formCropsList.filter((c) => c !== cropToRemove).join(', ');
-    setFormData((prev) => ({
-      ...prev,
-      primaryCrops: updated,
-    }));
+    setFormData((prev) => {
+      const currentList = prev.primaryCrops
+        ? prev.primaryCrops.split(',').map((c) => c.trim()).filter(Boolean)
+        : [];
+      const updated = currentList.filter((c) => c !== cropToRemove).join(', ');
+      return {
+        ...prev,
+        primaryCrops: updated,
+      };
+    });
   };
 
-  // Validate form
+  // Handle State Dropdown Change
+  const handleStateChange = (newState: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      state: newState,
+      district: '',
+      village: '',
+    }));
+    setCustomCityMode(false);
+  };
+
+  // Handle City / Town Dropdown Change
+  const handleCitySelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val === '__custom__') {
+      setCustomCityMode(true);
+      setFormData((prev) => ({ ...prev, district: '', village: '' }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        district: val,
+        village: val,
+      }));
+    }
+  };
+
+  // Validate form before save
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
 
-    // Text fields: allow letters, spaces, periods, apostrophes and hyphens.
-    // Supports Indian-language letters as well as English.
-    const textFields = [
-      { key: 'fullName', value: formData.fullName, label: 'Farmer name' },
-      { key: 'district', value: formData.district, label: 'District' },
-      { key: 'state', value: formData.state, label: 'State' },
-    ] as const;
-
-    for (const field of textFields) {
-      const village = formData.village.trim();
-
-      if (
-        village &&
-        !/^[\p{L}\p{M}\p{N}\s.,'’/#()\-]+$/u.test(village)
-      ) {
-        errors.village =
-          'Village/town may contain letters, numbers, spaces, and common punctuation only.';
-      }
-
-      const value = field.value.trim();
-
-      if (value && !/^[\p{L}\p{M}\s.'’-]+$/u.test(value)) {
-        errors[field.key] =
-          `${field.label} should contain letters only, without numbers or special symbols.`;
-      }
+    // Farmer Name (required)
+    const name = formData.fullName.trim();
+    if (!name) {
+      errors.fullName = 'Farmer full name is required.';
+    } else if (!/^[\p{L}\p{M}\s.'’-]+$/u.test(name)) {
+      errors.fullName = 'Farmer name should contain letters and standard punctuation only.';
     }
 
-    // Land area: accept only a non-negative decimal number.
+    // Phone: must be 10 digits to satisfy backend schema
+    const phoneDigits = (user?.phone || formData.phone || '').replace(/\D/g, '').slice(-10);
+    if (!phoneDigits || phoneDigits.length !== 10) {
+      errors.phone = 'A valid 10-digit phone number is required.';
+    }
+
+    // State (required)
+    if (!formData.state.trim()) {
+      errors.state = 'Please select a State / Province.';
+    }
+
+    // City / Town (required)
+    const city = formData.district.trim();
+    if (!city) {
+      errors.district = 'Please select or enter a City / Town.';
+    } else if (!/^[\p{L}\p{M}\p{N}\s.,'’()/\-]+$/u.test(city)) {
+      errors.district = 'City/Town should contain letters and standard characters only.';
+    }
+
+    // Land area: accept only a non-negative decimal number if entered
     const area = formData.landArea.trim();
     if (area !== '') {
       if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(area) || Number(area) < 0) {
-        errors.landArea =
-          'Land holding area must be a non-negative number (0 or greater).';
+        errors.landArea = 'Land holding area must be a non-negative number (0 or greater).';
       }
     }
 
-    // Latitude: accept only a number between -90 and 90.
+    // Latitude: accept only a number between -90 and 90 if entered
     const latitude = formData.latitude.trim();
     if (latitude !== '') {
-      if (
-        !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(latitude) ||
-        Number(latitude) < -90 ||
-        Number(latitude) > 90
-      ) {
+      const latNum = Number(latitude);
+      if (isNaN(latNum) || latNum < -90 || latNum > 90) {
         errors.latitude = 'Latitude must be between -90° and 90°.';
       }
     }
 
-    // Longitude: accept only a number between -180 and 180.
+    // Longitude: accept only a number between -180 and 180 if entered
     const longitude = formData.longitude.trim();
     if (longitude !== '') {
-      if (
-        !/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(longitude) ||
-        Number(longitude) < -180 ||
-        Number(longitude) > 180
-      ) {
+      const lonNum = Number(longitude);
+      if (isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
         errors.longitude = 'Longitude must be between -180° and 180°.';
       }
     }
@@ -338,891 +608,1000 @@ export const Profile: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Authoritative Save Workflow
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isSaving) return; // Prevent duplicate submissions
 
-  // Save changes
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+    setValidationErrors({});
     if (!validate()) return;
 
+    setIsSaving(true);
+    setSaveSuccess(false);
+
+    // 1. Snapshot the complete, latest form state
+    const current = { ...formData };
+    const cleanPhone = (user?.phone || current.phone || '').replace(/\D/g, '').slice(-10);
+
+    const latNum = current.latitude.trim() !== '' ? Number(current.latitude) : undefined;
+    const lonNum = current.longitude.trim() !== '' ? Number(current.longitude) : undefined;
+    const areaNum = current.landArea.trim() !== '' ? Number(current.landArea) : undefined;
+
+    // Preserve the avatar photo across all available local sources
+    const resolvedAvatar =
+      current.avatarUrl ||
+      profile.avatarUrl ||
+      user?.avatarUrl ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+      '';
+
+    // 2. Build payload adhering strictly to backend FarmerSchema
+    const payload: FarmerDbRecord = {
+      farmer_id: current.farmerId || user?.uid || 'KS-FARMER-DEFAULT',
+      name: current.fullName.trim() || 'Kisan',
+      phone: cleanPhone,
+      state: current.state.trim(),
+      district: current.district.trim(),
+      language: language || 'en',
+      village: current.district.trim(),
+      latitude: latNum !== undefined && !isNaN(latNum) ? latNum : undefined,
+      longitude: lonNum !== undefined && !isNaN(lonNum) ? lonNum : undefined,
+      land_area: areaNum !== undefined && !isNaN(areaNum) ? areaNum : undefined,
+      primary_crops: current.primaryCrops.trim() || undefined,
+      agro_climatic_zone: current.agroClimaticZone?.trim() || undefined,
+    };
+
     const updated: FarmerProfile = {
-      ...formData,
+      ...current,
+      avatarUrl: resolvedAvatar,
+      phone: cleanPhone || current.phone,
+      village: current.district.trim(),
       updatedAt: new Date().toISOString(),
     };
 
-    // 1. Always persist to localStorage first for local-first reliability
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      setProfile(updated);
-      setIsEditing(false);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 5000);
-    } catch {
-      setValidationErrors({ general: 'Failed to write profile to local storage. Storage quota may be full.' });
-      return;
-    }
-
-    // 2. Wire to POST /db/farmer -> Firestore
-
-    if (user) {
-      const payload: FarmerDbRecord = {
-        farmer_id: updated.farmerId || user.uid,
-        name: updated.fullName.trim() || 'Kisan',
-        phone: (user?.phone || updated.phone).trim() || '',
-        state: updated.state.trim() || '',
-        district: updated.district.trim() || '',
-        language: language || 'en',
-        village: updated.village.trim() || undefined,
-        latitude: updated.latitude ? parseFloat(updated.latitude) : undefined,
-        longitude: updated.longitude ? parseFloat(updated.longitude) : undefined,
-        land_area: updated.landArea ? parseFloat(updated.landArea) : undefined,
-        primary_crops: updated.primaryCrops || undefined,
-        agro_climatic_zone: updated.agroClimaticZone || undefined,
-      };
-
-      try {
-        const res = await saveFarmerProfileToDb(payload);
-
-        if (!res || res.status !== 'success') {
-          console.warn('Profile cloud sync did not report success.', res);
-        }
-      } catch (err) {
-        console.error('Profile cloud synchronization failed:', err);
+      // 3. Submit through existing profile-saving service and AWAIT response
+      const res = await saveFarmerProfileToDb(payload);
+      if (!res || (res.status !== 'success' && !res.data)) {
+        throw new Error(res?.message || 'Server did not confirm successful profile persistence.');
       }
+
+      // 4. Update authoritative localStorage only after genuine API confirmation
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+        if (resolvedAvatar) {
+          localStorage.setItem('kisan_avatar', resolvedAvatar);
+        }
+      } catch (storageErr) {
+        console.warn('LocalStorage save failed:', storageErr);
+      }
+
+      // 5. Update local state baseline & app context
+      setProfile(updated);
+      setFormData(updated);
+      updateUserName(updated.fullName.trim() || 'Kisan');
+      if (resolvedAvatar) {
+        updateUserAvatar(resolvedAvatar);
+      }
+
+      // 6. Show success message and exit edit mode
+      setSaveSuccess(true);
+      setIsEditing(false);
+      setTimeout(() => setSaveSuccess(false), 5000);
+    } catch (apiErr: any) {
+      console.error('Profile persistence failed:', apiErr);
+      const errMsg =
+        apiErr?.userMessage ||
+        apiErr?.message ||
+        'Failed to save profile to database. Please check your connection and try again.';
+      setValidationErrors({ general: errMsg });
+      // Keep edit mode active and preserve user's edits in formData so they can correct/retry
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  // Cancel edits and restore last saved profile baseline
   const handleCancel = () => {
     setFormData(profile);
+    const activeAvatar =
+      profile.avatarUrl ||
+      user?.avatarUrl ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+      '';
+    if (activeAvatar) {
+      updateUserAvatar(activeAvatar);
+    }
     setValidationErrors({});
     setGpsError(null);
+    setGpsSuccessMsg(null);
+    setCustomCityMode(false);
     setIsEditing(false);
   };
-    const filteredStates = INDIAN_STATES_AND_UTS.filter((state) =>
-    state.toLowerCase().includes(stateSearch.trim().toLowerCase())
-  );
 
-    const selectedLocation = indiaLocations.states.find(
-    (state) => state.name === formData.state
-  );
+  // Sign out user and navigate back to landing page
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await signOutUser();
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
-  const districtOptions = [...(selectedLocation?.districts ?? [])].sort(
-    (a, b) => a.localeCompare(b)
-  );
+  // Avatar Initials Helper
+  const getInitials = (name?: string) => {
+    if (!name || !name.trim()) return 'KS';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
-  const filteredDistricts = districtOptions.filter((district) =>
-    district.toLowerCase().includes(districtSearch.trim().toLowerCase())
-  );
+  // Current active display photo across all available sources
+  const currentAvatarUrl =
+    (isEditing ? formData.avatarUrl : profile.avatarUrl) ||
+    profile.avatarUrl ||
+    formData.avatarUrl ||
+    user?.avatarUrl ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('kisan_avatar') : null) ||
+    '';
 
-  const showCustomDistrictInput =
-    districtIsCustom ||
-    Boolean(
-      formData.district &&
-      !districtOptions.includes(formData.district)
-    );
+  const currentDisplayName = isEditing
+    ? formData.fullName || user?.name || 'Kisan Sahayak'
+    : profile.fullName || user?.name || 'Kisan Sahayak';
+
+  const currentCropsList = isEditing ? formCropsList : profileCropsList;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-stone-200">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
-            <User className="w-3.5 h-3.5" />
-            <span>Kisan Sahayak</span>
+    <div className="min-h-screen bg-stone-50/60 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-stone-200">
+          <div className="min-w-0 space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Kisan Sahayak Profile & Farm Records</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-stone-900 tracking-tight">
+              {t('profileTitle')}
+            </h1>
+            <p className="text-stone-600 text-sm sm:text-base max-w-2xl">
+              {t('profileSubtitle')}
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-stone-900 tracking-tight">
-            {t('profileTitle')}
-          </h1>
-          <p className="text-stone-600 text-sm sm:text-base">
-            {t('profileSubtitle')}
-          </p>
-        </div>
 
-        <div>
-          {!isEditing ? (
-            <button
-              type="button"
-              onClick={() => {
-                setFormData(profile);
-                setIsEditing(true);
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm shadow-xs transition-colors"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span>{t('editProfileBtn')}</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="min-h-[44px] px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-50 font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-400"
-              >
-                {t('cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <Save className="w-4 h-4" />
-                <span>{t('saveProfileBtn')}</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Save Success Alert */}
-      {saveSuccess && (
-        <div className="rounded-xl border border-green-300 bg-green-50 p-4 flex items-center gap-3 text-green-900 text-sm shadow-xs">
-          <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
-          <span>Profile saved successfully on this device!</span>
-        </div>
-      )}
-
-      {/* General error if any */}
-      {validationErrors.general && (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex items-center gap-3 text-red-900 text-sm">
-          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-          <span>{validationErrors.general}</span>
-        </div>
-      )}
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left 2 Columns: Identity, Location, Land Details */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Section 1: Farmer Identity */}
-          <section className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-7 space-y-5 shadow-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-stone-100">
-              <User className="w-5 h-5 text-emerald-700" />
-              <h2 className="text-lg sm:text-xl font-bold text-stone-900">
-                {t('farmerInfoTitle')}
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  {t('fullNameLabel')}
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    placeholder="e.g. Ramesh Kumar"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                  />
-                ) : (
-                  <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.fullName || <span className="text-stone-400 italic">Not specified</span>}
-                  </div>
-                )}
+          {/* Action Buttons: Single Top-Level Control Set */}
+          <div className="flex items-center gap-3 self-start md:self-center shrink-0">
+            {!isEditing ? (
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(profile);
+                    setIsEditing(true);
+                    setValidationErrors({});
+                    setGpsError(null);
+                    setGpsSuccessMsg(null);
+                  }}
+                  className="inline-flex items-center gap-2 min-h-[42px] px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span>{t('editProfileBtn')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="inline-flex items-center gap-2 min-h-[42px] px-4 py-2 rounded-xl border border-stone-300 bg-white hover:bg-red-50 hover:border-red-200 hover:text-red-700 text-stone-700 font-semibold text-sm shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 cursor-pointer disabled:opacity-50"
+                  aria-label={t('navLogout')}
+                  title={t('navLogout')}
+                >
+                  <LogOut className="w-4 h-4 text-stone-500 hover:text-red-600" />
+                  <span>{isLoggingOut ? t('loading') : t('navLogout')}</span>
+                </button>
               </div>
-
-              {/* Phone / WhatsApp */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{t('phoneLabel')}</span>
-                </label>
-                {isEditing ? (
-                  <div>
-                    <input
-                      type="tel"
-                      value={user?.phone || formData.phone}
-                      readOnly
-                      aria-readonly="true"
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-stone-100 text-stone-600 cursor-not-allowed text-sm"
-                    />
-                    {validationErrors.phone && (
-                      <p className="text-xs text-red-600 mt-1">{validationErrors.phone}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.phone || <span className="text-stone-400 italic">Not provided</span>}
-                  </div>
-                )}
+            ) : (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-1.5 min-h-[42px] px-4 py-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-white font-medium text-sm transition-colors shadow-xs focus:outline-none focus:ring-2 focus:ring-stone-400 disabled:opacity-50 cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 text-stone-500" />
+                  <span>{t('cancel')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSave()}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 min-h-[42px] px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-sm shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 cursor-pointer"
+                >
+                  {isSaving ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span>{isSaving ? 'Saving...' : t('saveProfileBtn')}</span>
+                </button>
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Farmer ID (Deterministic from UID) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider flex items-center gap-1">
-                  <Hash className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{t('farmerIdLabel')}</span>
-                </label>
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded bg-stone-100 border border-stone-200 font-mono text-xs font-bold text-stone-800">
-                  <span>{profile.farmerId || user.uid}</span>
+        {/* Feedback Banners */}
+        {saveSuccess && (
+          <div className="rounded-xl border border-emerald-300 bg-emerald-50/90 p-4 flex items-center gap-3 text-emerald-900 text-sm shadow-xs animate-in fade-in duration-200">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="flex-1">
+              <span className="font-semibold">Profile saved successfully!</span> Your changes are saved on this device and synced with cloud farm intelligence.
+            </div>
+          </div>
+        )}
+
+        {validationErrors.general && (
+          <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex items-center gap-3 text-red-900 text-sm shadow-xs">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+            <span className="font-medium">{validationErrors.general}</span>
+          </div>
+        )}
+
+        {/* Main Content Grid: Left Form (8 cols) & Right Summary (4 cols) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8 items-start">
+          {/* Left Column: Form Details */}
+          <div className="contents lg:block lg:col-span-7 xl:col-span-8 lg:space-y-6">
+            {/* 1. Farmer Identity Card */}
+            <section className="order-2 lg:order-none bg-white rounded-2xl border border-stone-200/90 p-6 sm:p-7 shadow-xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-stone-100">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900">
+                    {t('farmerInfoTitle')}
+                  </h2>
+                  <p className="text-xs text-stone-500">
+                    Personal identity and registered farmer credentials
+                  </p>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Section 2: Farm Location & Coordinates */}
-          <section className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-7 space-y-5 shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-emerald-700" />
-                <h2 className="text-lg sm:text-xl font-bold text-stone-900">
-                  {t('farmLocationTitle')}
-                </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Full Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    {t('fullNameLabel')}
+                  </label>
+                  {isEditing ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={formData.fullName}
+                        onChange={(e) => updateFormField('fullName', e.target.value)}
+                        placeholder="e.g. Ramesh Kumar"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 placeholder-stone-400 shadow-2xs"
+                      />
+                      {validationErrors.fullName && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors.fullName}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-stone-900 font-medium text-base py-1">
+                      {profile.fullName || <span className="text-stone-400 italic">Not specified</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Phone / WhatsApp */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-stone-400" />
+                    <span>{t('phoneLabel')}</span>
+                    <span className="text-[10px] text-stone-400 font-normal lowercase">(verified)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={user?.phone || activeRecord.phone || 'Not provided'}
+                      readOnly
+                      aria-readonly="true"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-600 cursor-not-allowed text-sm font-medium"
+                    />
+                    <div className="absolute right-3 top-2.5 text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-md">
+                      Verified
+                    </div>
+                  </div>
+                  {validationErrors.phone && (
+                    <p className="text-xs text-red-600 mt-1">{validationErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Farmer ID */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider flex items-center gap-1">
+                    <Hash className="w-3.5 h-3.5 text-stone-400" />
+                    <span>{t('farmerIdLabel')}</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-stone-100 border border-stone-200 font-mono text-xs font-bold text-stone-800 tracking-wide">
+                      <span>{profile.farmerId || user.uid}</span>
+                    </div>
+                    <span className="text-xs text-stone-500">
+                      System-assigned identifier linked to your agricultural database
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Farm Location & Coordinates Card */}
+            <section className="order-3 lg:order-none bg-white rounded-2xl border border-stone-200/90 p-6 sm:p-7 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-stone-900">
+                      {t('farmLocationTitle')}
+                    </h2>
+                    <p className="text-xs text-stone-500">
+                      State, City/Town, and GPS coordinates for precision agro-meteorology
+                    </p>
+                  </div>
+                </div>
+
+                {/* GPS Auto-Detect Button: Available in Edit Mode */}
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    disabled={gpsLoading}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold transition-colors disabled:opacity-50 shadow-2xs self-start sm:self-auto cursor-pointer"
+                  >
+                    {gpsLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                    ) : (
+                      <Navigation className="w-3.5 h-3.5 text-emerald-700" />
+                    )}
+                    <span>{gpsLoading ? 'Detecting Location...' : 'Detect My Location'}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* GPS Success Banner */}
+              {gpsSuccessMsg && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-900 flex items-center gap-2.5 shadow-2xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">{gpsSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* GPS Error Banner */}
+              {gpsError && (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3.5 text-xs text-amber-900 flex items-start gap-2.5 shadow-2xs">
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <span className="font-medium leading-relaxed">{gpsError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* State / Province */}
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="state-select"
+                    className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
+                  >
+                    State / Province
+                  </label>
+                  {isEditing ? (
+                    <div>
+                      <select
+                        id="state-select"
+                        value={formData.state}
+                        onChange={(e) => handleStateChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 shadow-2xs cursor-pointer"
+                      >
+                        <option value="">-- Select State / UT --</option>
+                        {INDIAN_STATES_AND_UTS.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.state && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors.state}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-stone-900 font-medium text-base py-1">
+                      {profile.state || <span className="text-stone-400 italic">Not set</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* City / Town (Dynamically Filtered by State) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="city-select"
+                      className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
+                    >
+                      City / Town
+                    </label>
+                    {isEditing && customCityMode && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomCityMode(false)}
+                        className="text-[11px] text-emerald-700 font-semibold hover:underline cursor-pointer"
+                      >
+                        Select from list
+                      </button>
+                    )}
+                  </div>
+
+                  {isEditing ? (
+                    customCityMode ? (
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          value={formData.district}
+                          onChange={(e) => updateFormField('district', e.target.value)}
+                          placeholder="Enter City or Town name"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 placeholder-stone-400 shadow-2xs"
+                        />
+                        {validationErrors.district && (
+                          <p className="text-xs text-red-600 mt-1">{validationErrors.district}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <select
+                          id="city-select"
+                          disabled={!formData.state}
+                          value={formData.district}
+                          onChange={handleCitySelectChange}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 shadow-2xs disabled:bg-stone-100 disabled:text-stone-400 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <option value="">
+                            {formData.state
+                              ? '-- Select City / Town --'
+                              : 'Select State first'}
+                          </option>
+
+                          {formData.district &&
+                            !stateDistricts.includes(formData.district) && (
+                              <option value={formData.district}>
+                                {formData.district}
+                              </option>
+                            )}
+
+                          {stateDistricts.map((city) => (
+                            <option key={city} value={city}>
+                              {city}
+                            </option>
+                          ))}
+
+                          {formData.state && (
+                            <option value="__custom__">
+                              + Other / Not listed...
+                            </option>
+                          )}
+                        </select>
+                        {validationErrors.district && (
+                          <p className="text-xs text-red-600 mt-1">{validationErrors.district}</p>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-stone-900 font-medium text-base py-1">
+                      {profile.district || <span className="text-stone-400 italic">Not set</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* GPS Coordinates (Latitude & Longitude) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-3 border-t border-stone-100">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    Latitude (°N)
+                  </label>
+                  {isEditing ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={formData.latitude}
+                        onChange={(e) => updateFormField('latitude', e.target.value)}
+                        placeholder="e.g. 23.34410"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 font-mono shadow-2xs"
+                      />
+                      {validationErrors.latitude && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors.latitude}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-stone-900 font-mono text-sm py-1">
+                      {profile.latitude ? `${profile.latitude}° N` : <span className="text-stone-400 italic font-sans">Not set</span>}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    Longitude (°E)
+                  </label>
+                  {isEditing ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={formData.longitude}
+                        onChange={(e) => updateFormField('longitude', e.target.value)}
+                        placeholder="e.g. 85.30960"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 font-mono shadow-2xs"
+                      />
+                      {validationErrors.longitude && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors.longitude}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-stone-900 font-mono text-sm py-1">
+                      {profile.longitude ? `${profile.longitude}° E` : <span className="text-stone-400 italic font-sans">Not set</span>}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {isEditing && (
-                <button
-                  type="button"
-                  onClick={handleGetLocation}
-                  disabled={gpsLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  {gpsLoading ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Navigation className="w-3.5 h-3.5" />
-                  )}
-                  <span>{gpsLoading ? 'Detecting...' : 'Auto-Detect via GPS'}</span>
-                </button>
+                <p className="text-[11px] text-stone-500 leading-normal">
+                  Latitude and Longitude are auto-populated when you click "Detect My Location", or can be entered manually for exact field centroids.
+                </p>
               )}
-            </div>
+            </section>
 
-            {gpsError && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <span>{gpsError}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {/* Village */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  {t('villageLabel')}
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.village}
-                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                    placeholder="e.g. Rampur"
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                  />
-                ) : (
-                  <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.village || <span className="text-stone-400 italic">Not set</span>}
-                  </div>
-                )}
+            {/* 3. Farm Land & Crops Card */}
+            <section className="order-4 lg:order-none bg-white rounded-2xl border border-stone-200/90 p-6 sm:p-7 shadow-xs space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-stone-100">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Trees className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900">
+                    Farm Land & Primary Crops
+                  </h2>
+                  <p className="text-xs text-stone-500">
+                    Acreage and cultivated crops to tailor agronomic guidance
+                  </p>
+                </div>
               </div>
 
-              {/* District */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="district-search"
-                  className="block text-xs font-semibold text-stone-600 uppercase tracking-wider"
-                >
-                  {t('districtLabel')}
-                </label>
-
-                {isEditing ? (
-                  showCustomDistrictInput ? (
-                    <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Land Holding Area */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    {t('landAreaLabel')}
+                  </label>
+                  {isEditing ? (
+                    <div>
                       <input
                         type="text"
-                        value={formData.district}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            district: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter district name"
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
+                        value={formData.landArea}
+                        onChange={(e) => updateFormField('landArea', e.target.value)}
+                        placeholder="e.g. 2.5"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 shadow-2xs"
                       />
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDistrictIsCustom(false);
-                          setFormData((prev) => ({
-                            ...prev,
-                            district: '',
-                          }));
-                          setDistrictSearch('');
-                        }}
-                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline"
-                      >
-                        Choose from district list
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className="relative"
-                      onBlur={(event) => {
-                        if (
-                          !event.currentTarget.contains(
-                            event.relatedTarget as Node | null
-                          )
-                        ) {
-                          setShowDistrictOptions(false);
-                          setDistrictSearch('');
-                        }
-                      }}
-                    >
-                      <input
-                        id="district-search"
-                        type="text"
-                        role="combobox"
-                        aria-autocomplete="list"
-                        aria-expanded={showDistrictOptions}
-                        aria-controls="district-options-list"
-                        autoComplete="off"
-                        disabled={!formData.state}
-                        value={
-                          showDistrictOptions
-                            ? districtSearch
-                            : formData.district
-                        }
-                        placeholder={
-                          formData.state
-                            ? 'Search or select district'
-                            : 'Select state first'
-                        }
-                        onFocus={() => {
-                          setDistrictSearch('');
-                          setShowDistrictOptions(true);
-                        }}
-                        onChange={(event) => {
-                          setDistrictSearch(event.target.value);
-                          setShowDistrictOptions(true);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Escape') {
-                            setShowDistrictOptions(false);
-                            setDistrictSearch('');
-                          }
-                        }}
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 disabled:bg-stone-100 disabled:text-stone-400"
-                      />
-
-                      {showDistrictOptions && formData.state && (
-                        <div
-                          id="district-options-list"
-                          role="listbox"
-                          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-stone-200 bg-white p-1 shadow-lg"
-                        >
-                          {filteredDistricts.length > 0 ? (
-                            filteredDistricts.map((district) => (
-                              <button
-                                key={district}
-                                type="button"
-                                role="option"
-                                aria-selected={
-                                  formData.district === district
-                                }
-                                onMouseDown={(event) =>
-                                  event.preventDefault()
-                                }
-                                onClick={() => {
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    district,
-                                  }));
-                                  setDistrictIsCustom(false);
-                                  setDistrictSearch('');
-                                  setShowDistrictOptions(false);
-                                }}
-                                className={`block w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-emerald-50 ${
-                                  formData.district === district
-                                    ? 'bg-emerald-50 font-semibold text-emerald-800'
-                                    : 'text-stone-800'
-                                }`}
-                              >
-                                {district}
-                              </button>
-                            ))
-                          ) : (
-                            <p className="px-3 py-3 text-sm text-stone-500">
-                              No matching district found.
-                            </p>
-                          )}
-
-                          <button
-                            type="button"
-                            onMouseDown={(event) =>
-                              event.preventDefault()
-                            }
-                            onClick={() => {
-                              setDistrictIsCustom(true);
-                              setFormData((prev) => ({
-                                ...prev,
-                                district: '',
-                              }));
-                              setDistrictSearch('');
-                              setShowDistrictOptions(false);
-                            }}
-                            className="mt-1 block w-full rounded-md border-t border-stone-200 px-3 py-2.5 text-left text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            Other / Not listed
-                          </button>
-                        </div>
+                      {validationErrors.landArea && (
+                        <p className="text-xs text-red-600 mt-1">{validationErrors.landArea}</p>
                       )}
                     </div>
-                  )
-                ) : (
-                  <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.district || (
-                      <span className="text-stone-400 italic">
-                        Not set
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* State */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="state-search"
-                  className="block text-xs font-semibold text-stone-600 uppercase tracking-wider"
-                >
-                  {t('stateLabel')}
-                </label>
-
-                {isEditing ? (
-                  <div
-                    className="relative"
-                    onBlur={(event) => {
-                      if (
-                        !event.currentTarget.contains(
-                          event.relatedTarget as Node | null
-                        )
-                      ) {
-                        setShowStateOptions(false);
-                      }
-                    }}
-                  >
-                    <input
-                      id="state-search"
-                      type="text"
-                      role="combobox"
-                      aria-autocomplete="list"
-                      aria-expanded={showStateOptions}
-                      aria-controls="state-options-list"
-                      autoComplete="off"
-                      value={showStateOptions ? stateSearch : formData.state}
-                      placeholder="Search or select state / UT"
-                      onFocus={() => {
-                        setStateSearch(formData.state);
-                        setShowStateOptions(true);
-                      }}
-                      onChange={(event) => {
-                        setStateSearch(event.target.value);
-                        setShowStateOptions(true);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') {
-                          setShowStateOptions(false);
-                          setStateSearch(formData.state);
-                        }
-                      }}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                    />
-
-                    {showStateOptions && (
-                      <div
-                        id="state-options-list"
-                        role="listbox"
-                        className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-lg border border-stone-200 bg-white p-1 shadow-lg"
-                      >
-                        {filteredStates.length > 0 ? (
-                          filteredStates.map((state) => (
-                            <button
-                              key={state}
-                              type="button"
-                              role="option"
-                              aria-selected={formData.state === state}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  state,
-                                  district: '',
-                                }));
-                                setDistrictIsCustom(false);
-                                setStateSearch(state);
-                                setShowStateOptions(false);
-                              }}
-                              className={`block w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-emerald-50 ${
-                                formData.state === state
-                                  ? 'bg-emerald-50 font-semibold text-emerald-800'
-                                  : 'text-stone-800'
-                              }`}
-                            >
-                              {state}
-                            </button>
-                          ))
-                        ) : (
-                          <p className="px-3 py-3 text-sm text-stone-500">
-                            No matching state or UT found.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-stone-900 font-medium text-base py-1">
-                    {profile.state || (
-                      <span className="text-stone-400 italic">
-                        Not set
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Coordinates */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2 border-t border-stone-100">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  Latitude (°N)
-                </label>
-                {isEditing ? (
-                  <div>
-                    <input
-                      type="text"
-                      value={formData.latitude}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          latitude: e.target.value,
-                        })
-                      }
-                      placeholder="e.g. 25.31760"
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 font-mono"
-                    />
-                    {validationErrors.latitude && (
-                      <p className="text-xs text-red-600 mt-1">{validationErrors.latitude}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-stone-900 font-mono text-sm py-1">
-                    {profile.latitude ? `${profile.latitude}° N` : <span className="text-stone-400 italic font-sans">Not set</span>}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  Longitude (°E)
-                </label>
-                {isEditing ? (
-                  <div>
-                    <input
-                      type="text"
-                      value={formData.longitude}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          longitude: e.target.value,
-                        })
-                      }
-                      placeholder="e.g. 82.97390"
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 font-mono"
-                    />
-                    {validationErrors.longitude && (
-                      <p className="text-xs text-red-600 mt-1">{validationErrors.longitude}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-stone-900 font-mono text-sm py-1">
-                    {profile.longitude ? `${profile.longitude}° E` : <span className="text-stone-400 italic font-sans">Not set</span>}
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Section 3: Farm Land & Crops */}
-          <section className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-7 space-y-5 shadow-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-stone-100">
-              <Trees className="w-5 h-5 text-emerald-700" />
-              <h2 className="text-lg sm:text-xl font-bold text-stone-900">
-                {t('farmDetailsTitle')}
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Land Holding Area */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  {t('landAreaLabel')}
-                </label>
-                {isEditing ? (
-                  <div>
-                    <input
-                      type="text"
-                      value={formData.landArea}
-                      onChange={(e) =>
-                        setFormData({ ...formData, landArea: e.target.value })
-                      }
-                      placeholder="e.g. 2.5"
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900"
-                    />
-                    {validationErrors.landArea && (
-                      <p className="text-xs text-red-600 mt-1">{validationErrors.landArea}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-stone-900 font-bold text-lg py-1">
-                    {profile.landArea || '0'}{' '}
-                    <span className="text-sm font-medium text-stone-600">{profile.landUnit}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Land Unit */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                  {t('landUnitLabel')}
-                </label>
-                {isEditing ? (
-                  <select
-                    value={formData.landUnit}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        landUnit: e.target.value as 'acres' | 'hectares',
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 bg-white"
-                  >
-                    <option value="acres">Acres</option>
-                    <option value="hectares">Hectares</option>
-                  </select>
-                ) : (
-                  <div className="text-stone-800 font-medium text-base py-1 capitalize">
-                    {profile.landUnit}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Primary Crops */}
-            <div className="space-y-2 pt-3 border-t border-stone-100">
-              <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                {t('primaryCropsLabel')}
-              </label>
-
-              {isEditing ? (
-                <div className="space-y-3">
-                  {/* Selected Crop Badges */}
-                  <div className="flex flex-wrap gap-2 min-h-8">
-                    {formCropsList.length === 0 ? (
-                      <span className="text-xs text-stone-400 italic">No crops selected yet. Choose from quick options below or add custom crops.</span>
-                    ) : (
-                      formCropsList.map((crop) => (
-                        <span
-                          key={crop}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold"
-                        >
-                          <span>{crop}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCrop(crop)}
-                            className="p-0.5 hover:text-red-600 focus:outline-none"
-                            aria-label={`Remove ${crop}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Add Custom Crop Input */}
-                  <div className="flex gap-2 max-w-sm">
-                    <input
-                      type="text"
-                      value={newCropInput}
-                      onChange={(e) => setNewCropInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCrop(newCropInput);
-                        }
-                      }}
-                      placeholder="Add another crop..."
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-stone-900"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleAddCrop(newCropInput)}
-                      className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-white text-xs font-semibold flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Add</span>
-                    </button>
-                  </div>
-
-                  {/* Quick Select Buttons */}
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] font-semibold text-stone-500 uppercase">Quick Select:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {COMMON_CROPS.map((crop) => {
-                        const isSelected = formCropsList.includes(crop);
-                        return (
-                          <button
-                            key={crop}
-                            type="button"
-                            onClick={() => (isSelected ? handleRemoveCrop(crop) : handleAddCrop(crop))}
-                            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                              isSelected
-                                ? 'bg-emerald-700 text-white shadow-xs'
-                                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                            }`}
-                          >
-                            {isSelected ? `✓ ${crop}` : `+ ${crop}`}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2 py-1">
-                  {profileCropsList.length > 0 ? (
-                    profileCropsList.map((crop) => (
-                      <span
-                        key={crop}
-                        className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold"
-                      >
-                        {crop}
-                      </span>
-                    ))
                   ) : (
-                    <span className="text-stone-400 text-sm italic">No crops recorded yet.</span>
+                    <div className="text-stone-900 font-bold text-lg py-1">
+                      {profile.landArea || '0'}{' '}
+                      <span className="text-sm font-medium text-stone-600">{profile.landUnit}</span>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </section>
-        </div>
 
-        {/* Right 1 Column: Agro-Climatic Zone & Field Records */}
-        <div className="space-y-8">
-          {/* Section 4: Agro-Climatic Zone (Honest Empty State) */}
-          <section className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4 shadow-xs">
-            <div className="flex items-center gap-2 pb-3 border-b border-stone-100">
-              <Compass className="w-5 h-5 text-emerald-700" />
-              <h2 className="text-base sm:text-lg font-bold text-stone-900">
-                {t('agroClimaticZoneTitle')}
-              </h2>
-            </div>
-
-            <div className="rounded-xl bg-stone-50 border border-stone-200/80 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-stone-500 text-xs font-semibold uppercase tracking-wider">
-                <Info className="w-3.5 h-3.5" />
-                <span>Zone Classification</span>
-              </div>
-              {isEditing ? (
-                <div className="space-y-1">
-                  <select
-                    value={formData.agroClimaticZone || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        agroClimaticZone: e.target.value || undefined,
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-stone-900 bg-white"
-                  >
-                    <option value="">-- Select Agro-Climatic Zone --</option>
-                    {AGRO_CLIMATIC_ZONES.map((zone) => (
-                      <option key={zone} value={zone}>
-                        {zone}
-                      </option>
-                    ))}
-                  </select>
+                {/* Land Unit */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                    {t('landUnitLabel')}
+                  </label>
+                  {isEditing ? (
+                    <select
+                      value={formData.landUnit}
+                      onChange={(e) => updateFormField('landUnit', e.target.value as 'acres' | 'hectares')}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm text-stone-900 bg-white shadow-2xs cursor-pointer"
+                    >
+                      <option value="acres">Acres</option>
+                      <option value="hectares">Hectares</option>
+                    </select>
+                  ) : (
+                    <div className="text-stone-800 font-medium text-base py-1 capitalize">
+                      {profile.landUnit}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-xs sm:text-sm text-stone-800 font-medium leading-relaxed">
-                  {profile.agroClimaticZone || t('agroClimaticZonePending')}
+              </div>
+
+              {/* Primary Crops Section: Ordered A -> B -> C -> D */}
+              <div className="space-y-3.5 pt-3 border-t border-stone-100">
+                {/* A. Section Label */}
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+                  {t('primaryCropsLabel')}
+                </label>
+
+                {isEditing ? (
+                  <div className="space-y-4">
+                    {/* B. Quick Select options */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                        Quick Select:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {COMMON_CROPS.map((crop) => {
+                          const isSelected = formCropsList.includes(crop);
+                          return (
+                            <button
+                              key={crop}
+                              type="button"
+                              onClick={() =>
+                                isSelected
+                                  ? handleRemoveCrop(crop)
+                                  : handleAddCrop(crop)
+                              }
+                              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-700 text-white shadow-2xs'
+                                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                              }`}
+                            >
+                              {isSelected ? `✓ ${crop}` : `+ ${crop}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* C. Custom crop input + Add button */}
+                    <div className="flex gap-2 max-w-sm">
+                      <input
+                        type="text"
+                        value={newCropInput}
+                        onChange={(e) => setNewCropInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCrop(newCropInput);
+                          }
+                        }}
+                        placeholder="Add custom crop..."
+                        className="flex-1 px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-stone-900 shadow-2xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddCrop(newCropInput)}
+                        className="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add</span>
+                      </button>
+                    </div>
+
+                    {/* D. Selected crop chips */}
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
+                        Selected Crops:
+                      </span>
+                      <div className="flex flex-wrap gap-2 min-h-9 p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                        {formCropsList.length === 0 ? (
+                          <span className="text-xs text-stone-400 italic py-0.5">
+                            No crops selected yet. Select from quick options above or type to add custom crops.
+                          </span>
+                        ) : (
+                          formCropsList.map((crop) => (
+                            <span
+                              key={crop}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-semibold shadow-2xs"
+                            >
+                              <span>{crop}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCrop(crop)}
+                                className="p-0.5 rounded-full hover:bg-emerald-200 text-emerald-700 hover:text-emerald-900 focus:outline-none cursor-pointer"
+                                aria-label={`Remove ${crop}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 py-1">
+                    {profileCropsList.length > 0 ? (
+                      profileCropsList.map((crop) => (
+                        <span
+                          key={crop}
+                          className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold"
+                        >
+                          {crop}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-stone-400 text-sm italic">No crops recorded yet.</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column: Profile Summary, Agro Zone & History */}
+          <div className="contents lg:block lg:col-span-5 xl:col-span-4 lg:space-y-6">
+            {/* Profile Summary Card with Cover Image */}
+            <div className="order-1 lg:order-none bg-white rounded-2xl border border-stone-200/90 shadow-xs overflow-hidden">
+              {/* Agricultural Cover Landscape */}
+              <div className="relative h-28 bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 overflow-hidden">
+                <img
+                  src="/images/farm-landscape-banner.png"
+                  alt="Agricultural farm landscape"
+                  className="w-full h-full object-cover opacity-60 mix-blend-overlay"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              </div>
+
+              {/* Centered Avatar and Profile Details */}
+              <div className="px-6 pb-6 pt-0 text-center relative">
+                {/* Avatar with Camera Edit Button (active when editing) */}
+                <div className="relative -mt-12 inline-block">
+                  <div className="w-24 h-24 rounded-full border-4 border-white bg-emerald-600 text-white flex items-center justify-center font-bold text-2xl shadow-md overflow-hidden mx-auto">
+                    {currentAvatarUrl ? (
+                      <img
+                        src={currentAvatarUrl}
+                        alt="Farmer profile avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{getInitials(currentDisplayName)}</span>
+                    )}
+                  </div>
+
+                  {/* Hidden File Input for Avatar */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+
+                  {/* Camera icon button: visible in edit mode */}
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Change profile picture"
+                      className="absolute bottom-1 right-1 p-1.5 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white shadow-md transition-transform hover:scale-105 border-2 border-white focus:outline-none cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Farmer Name & ID */}
+                <div className="mt-3 space-y-1">
+                  <h3 className="text-xl font-bold text-stone-900 tracking-tight">
+                    {currentDisplayName}
+                  </h3>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 text-xs font-mono font-semibold">
+                    <Hash className="w-3 h-3 text-stone-400" />
+                    <span>{profile.farmerId || user.uid}</span>
+                  </div>
+                </div>
+
+                {/* Compact Info Row: City, State • Landholding */}
+                <div className="mt-4 pt-4 border-t border-stone-100 text-xs text-stone-600 space-y-2">
+                  <div className="flex items-center justify-center gap-2 font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      {activeRecord.district || 'City/Town'}, {activeRecord.state || 'State'}
+                    </span>
+                    <span>•</span>
+                    <Trees className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      {activeRecord.landArea || '0'} {activeRecord.landUnit}
+                    </span>
+                  </div>
+
+                  {/* Primary Crops Summary */}
+                  {currentCropsList.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-1 pt-1">
+                      {currentCropsList.slice(0, 4).map((crop) => (
+                        <span
+                          key={crop}
+                          className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[11px] font-semibold"
+                        >
+                          {crop}
+                        </span>
+                      ))}
+                      {currentCropsList.length > 4 && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-600 text-[11px]">
+                          +{currentCropsList.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-emerald-700 font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Active Digital Farm Profile</span>
+                  </div>
+
+                  <div className="pt-3 border-t border-stone-100">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-stone-200 bg-stone-50/80 hover:bg-red-50 hover:border-red-200 hover:text-red-700 text-stone-600 font-medium text-xs transition-colors cursor-pointer disabled:opacity-50"
+                      aria-label={t('navLogout')}
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-stone-400 group-hover:text-red-600" />
+                      <span>{isLoggingOut ? t('loading') : t('navLogout')}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Agro-Climatic Zone Card */}
+            <section className="order-5 lg:order-none bg-white rounded-2xl border border-stone-200/90 p-5 sm:p-6 space-y-4 shadow-xs">
+              <div className="flex items-center gap-3 pb-3 border-b border-stone-100">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">
+                    {t('agroClimaticZoneTitle')}
+                  </h3>
+                  <p className="text-[11px] text-stone-500">
+                    Ecological and agro-meteorological region
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-stone-50/80 border border-stone-200 p-4 space-y-3">
+                {isEditing ? (
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wider">
+                      Zone Classification
+                    </label>
+                    <select
+                      value={formData.agroClimaticZone || ''}
+                      onChange={(e) => updateFormField('agroClimaticZone', e.target.value || undefined)}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-stone-900 bg-white shadow-2xs cursor-pointer"
+                    >
+                      <option value="">-- Select Agro-Climatic Zone --</option>
+                      {AGRO_CLIMATIC_ZONES.map((zone) => (
+                        <option key={zone} value={zone}>
+                          {zone}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
+                      Zone Classification
+                    </span>
+                    <div className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg inline-block">
+                      {profile.agroClimaticZone || 'Zone not selected yet'}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  {activeRecord.agroClimaticZone
+                    ? `Configured for ${activeRecord.agroClimaticZone}. Soil advisory models use this zone to adapt N-P-K ratios and irrigation guidance.`
+                    : 'Select your agro-climatic zone to adapt soil health recommendations to regional soil taxonomy.'}
                 </p>
-              )}
-              <div className="pt-1">
+
+                <div className="pt-2 border-t border-stone-200/60">
+                  <Link
+                    to="/khet-swasthya"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 group"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Run Soil Health Evaluation</span>
+                    <span className="transition-transform group-hover:translate-x-0.5">&rarr;</span>
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* Field Records & History Card */}
+            <section className="order-6 lg:order-none bg-white rounded-2xl border border-stone-200/90 p-5 sm:p-6 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-stone-900">
+                      {t('recordsSectionTitle')}
+                    </h3>
+                    <p className="text-[11px] text-stone-500">
+                      Synced field logs and soil evaluations
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  Cloud Connected
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {/* Soil Health Record Card */}
                 <Link
                   to="/khet-swasthya"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline decoration-emerald-500/40"
+                  className="block rounded-xl border border-stone-200/80 p-3 hover:bg-stone-50/80 transition-colors group"
                 >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Run Soil Health Evaluation &rarr;</span>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-stone-800 group-hover:text-emerald-700">
+                      Soil Health Card Evaluations
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Evaluations run on Khet Swasthya are synced with your farmer ID.
+                  </p>
+                </Link>
+
+                {/* Plant Pathology Card */}
+                <Link
+                  to="/diagnosis"
+                  className="block rounded-xl border border-stone-200/80 p-3 hover:bg-stone-50/80 transition-colors group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-stone-800 group-hover:text-emerald-700">
+                      Crop Pathology & Leaf Scans
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Fasal Rog Pehchan diagnosis records and pest outbreak advisories.
+                  </p>
                 </Link>
               </div>
-            </div>
-          </section>
 
-          {/* Section 5: Field Records & History (Honest Pending State) */}
-          <section className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-emerald-700" />
-                <h2 className="text-base sm:text-lg font-bold text-stone-900">
-                  {t('recordsSectionTitle')}
-                </h2>
+              <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+                <Link
+                  to="/history"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                >
+                  <span>View Full History Timeline &rarr;</span>
+                </Link>
+                <Link
+                  to="/data-sources"
+                  className="inline-flex items-center gap-1 text-[11px] text-stone-500 hover:text-stone-800"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Data Trust</span>
+                </Link>
               </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-stone-100 text-stone-600">
-                {t('profileHistoryStatusBadge')}
-              </span>
-            </div>
-
-            <p className="text-xs text-stone-600 leading-relaxed">
-              {t('recordsPendingNote')}
-            </p>
-
-            <div className="space-y-3 pt-2">
-              {/* Soil Evaluation Record Placeholder */}
-              <div className="rounded-lg border border-dashed border-stone-300 p-3.5 text-center space-y-1 bg-stone-50/50">
-                <div className="text-xs font-semibold text-stone-700">
-                  Soil Health Card Evaluations
-                </div>
-                <p className="text-[11px] text-stone-500">
-                  0 saved cloud evaluations. Evaluations run on the Khet Swasthya page are stored in local session memory.
-                </p>
-              </div>
-
-              {/* Plant Diagnosis Record Placeholder */}
-              <div className="rounded-lg border border-dashed border-stone-300 p-3.5 text-center space-y-1 bg-stone-50/50">
-                <div className="text-xs font-semibold text-stone-700">
-                  Crop Pathology Diagnoses
-                </div>
-                <p className="text-[11px] text-stone-500">
-                  0 saved cloud diagnoses. Leaf scans run on the Fasal Rog Pehchan page are processed live and not persisted without a backend history database.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
-              <Link
-                to="/history"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800"
-              >
-                <span>View Full History Timeline &rarr;</span>
-              </Link>
-              <Link
-                to="/data-sources"
-                className="inline-flex items-center gap-1 text-[11px] text-stone-500 hover:text-stone-800"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Governance</span>
-              </Link>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-

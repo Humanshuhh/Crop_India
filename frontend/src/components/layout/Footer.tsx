@@ -1,10 +1,16 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Sprout, ShieldCheck, HeartHandshake, ExternalLink } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ShieldCheck, HeartHandshake, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
 export const Footer: React.FC = () => {
   const { t } = useLanguage();
+  const location = useLocation();
+
+  // Assistant page is a fixed full-screen chat workspace, so hide footer there
+  if (location.pathname === '/assistant') {
+    return null;
+  }
 
   return (
     <footer className="w-full bg-stone-900 text-stone-300 border-t border-stone-800 mt-16">
@@ -12,10 +18,12 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Brand & Purpose */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="p-1.5 rounded-md bg-emerald-700 text-stone-50">
-                <Sprout className="w-5 h-5" aria-hidden="true" />
-              </span>
+            <div className="flex items-center gap-2.5 mb-3">
+              <img
+                src="/images/kisan-sahayak-logo.png"
+                alt={t('appTitle')}
+                className="w-8 h-8 object-contain shrink-0"
+              />
               <span className="font-bold text-lg text-stone-100 tracking-tight">
                 {t('appTitle')}
               </span>

@@ -30,8 +30,12 @@ export const FasalRogPehchan: React.FC = () => {
   const { user } = useAuth();
 
   const farmerId = user
-    ? `KS-${user.uid.slice(0, 8).toUpperCase()}`
-    : 'default_farmer';
+    ? (user.uid.startsWith('FARM_') || user.uid.startsWith('KS-')
+        ? user.uid
+        : `KS-${user.uid.slice(0, 8).toUpperCase()}`)
+    : undefined;
+
+
 
   const { isSpeaking, activeContentId, currentSentenceIndex } = useVoice();
   const { cropCache, setCropCache } = useResultCache();
