@@ -1,15 +1,23 @@
-﻿import io
+﻿# backend/ml_engine/diagnostics.py
+
+import io
 import json
 import logging
 import os
-import time
 from typing import List, Optional
+
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 
-logger = logging.getLogger("kisan_sahayak.diagnostics")
+# Import the centralized async backoff client wrapper
+try:
+    from backend.utils.gemini_client import async_generate_content_with_backoff
+except ImportError:
+    from gemini_client import async_generate_content_with_backoff
+
+logger = logging.getLogger("cropindia.diagnostics")
 
 
 class EcoRemedy(BaseModel):
@@ -19,22 +27,22 @@ class EcoRemedy(BaseModel):
 
 
 class LeafDiagnosisResult(BaseModel):
-    is_plant_detected: bool = Field(description="True if a crop leaf, foliage, or plant tissue is visible")
-    crop_name: Optional[str] = Field(default=None, description="Common name of the crop or plant identified")
-    detected_condition: str = Field(description="Specific disease name, pest damage pattern, or nutrient chlorosis")
+    is_plant_detected: bool = Field(description="True if a crop leaf, foliage, or plant tissue is visible. False for non-plant or garbage images.")
+    crop_name: Optional[str] = Field(default=None, description="Common name of the crop or plant identified, or null if no plant is detected")
+    detected_condition: str = Field(description="Specific disease name, pest damage pattern, nutrient chlorosis, or 'INVALID_IMAGE'")
     confidence_level: str = Field(description="Confidence rating: HIGH, MEDIUM, or LOW")
-    underlying_cause: str = Field(description="Pathogen etiology, environmental predisposition, or soil nutrient imbalance")
-    visual_symptoms: List[str] = Field(default_factory=list, description="Observed physical symptoms")
+    underlying_cause: str = Field(description="Pathogen etiology or explanation of why the image is not relevant")
+    visual_symptoms: List[str] = Field(default_factory=list, description="Observed physical symptoms or empty if not a plant")
     eco_friendly_remedies: List[EcoRemedy] = Field(
         default_factory=list,
-        description="Non-chemical, regenerative, or bio-fungicide treatments"
+        description="Non-chemical, regenerative treatments (empty if not a plant)"
     )
     preventive_cultural_practices: List[str] = Field(
         default_factory=list,
-        description="Agronomic field hygiene, crop rotation, and watering practices"
+        description="Agronomic field hygiene practices (empty if not a plant)"
     )
     spoken_summary: str = Field(
-        description="Concise spoken advisory in plain language suitable for direct TTS voice playback"
+        description="Clear vernacular message. If not a plant, explain politely that the image is not a recognized plant leaf and ask to take a clear photo of the crop."
     )
 
 
@@ -50,14 +58,14 @@ class PlantDiagnosticsEngine:
     def __init__(self):
         self.api_key = resolve_api_key()
         self.client = genai.Client(api_key=self.api_key) if self.api_key else None
-        # Primary high-throughput production models with fallback tiers
+        
+        # High-throughput candidate models with fast fallback
         self.candidate_models = [
-            "gemini-3.6-flash",
-            "gemini-3.7-flash",
-            "gemini-3.5-flash"
+            "gemini-3.5-flash-lite",
+            "gemini-3.8-flash",
         ]
 
-    def diagnose_leaf_image(
+    async def async_diagnose_leaf_image(
         self,
         image_bytes: bytes,
         target_language: str = "hi",
@@ -66,6 +74,9 @@ class PlantDiagnosticsEngine:
         agro_context: Optional[dict] = None,
         mime_type: str = "image/jpeg"
     ) -> LeafDiagnosisResult:
+        """
+        Asynchronously diagnoses leaf pathology using the resilient Gemini client wrapper.
+        """
         if not self.client:
             raise RuntimeError("Gemini API key is not configured. Set GEMINI_API_KEY in your environment.")
 
@@ -76,14 +87,17 @@ class PlantDiagnosticsEngine:
             ph = agro_context.get("ph", "7.2")
             tx = agro_context.get("texture", "Sandy Loam")
             ndvi = agro_context.get("ndvi", 0.52)
-            rf = agro_context.get("rainfall_mm", "45mm")
-            ndwi = agro_context.get("ndwi", "Moderate")
+            rf = agro_context.get("rainfall_mm", agro_context.get("current_precipitation_mm", "0 mm"))
+            temp = agro_context.get("current_temperature_c", "N/A")
+            humidity = agro_context.get("relative_humidity_pct", "N/A")
+            rain_chance = agro_context.get("next_12h_rain_chance_pct", "N/A")
 
             env_context_str = (
                 f"- GPS Location: Lat {latitude}, Lon {longitude}\n"
                 f"- Agro-Climatic Zone: {z}\n"
+                f"- Current Weather: Temp = {temp}°C, Relative Humidity = {humidity}%, Recent Rain = {rf}, Rain Chance (12h) = {rain_chance}%\n"
                 f"- Soil Baseline: Organic Carbon = {oc}, pH = {ph}, Texture = {tx}\n"
-                f"- Satellite Telemetry: Mean NDVI = {ndvi}, Recent 14-day Rainfall = {rf}, NDWI = {ndwi}"
+                f"- Satellite Telemetry: Mean NDVI = {ndvi}"
             )
         elif latitude is not None and longitude is not None:
             env_context_str = f"- GPS Coordinates: Latitude {latitude}, Longitude {longitude}"
@@ -94,90 +108,95 @@ class PlantDiagnosticsEngine:
             "--- GEOSPATIAL & ENVIRONMENTAL TELEMETRY (FUSED CONTEXT) ---\n"
             f"{env_context_str}\n"
             "----------------------------------------------------------\n\n"
-            "Diagnostic Guidelines:\n"
-            "1. Confirm if a plant or crop leaf is present. If not, set is_plant_detected to false.\n"
-            "2. Identify the crop species and primary condition.\n"
-            "3. CROSS-REFERENCE WITH GEOSPATIAL CONTEXT:\n"
-            "   - If chlorosis matches low Soil Organic Carbon or alkaline pH, diagnose nutrient deficiency.\n"
-            "   - If fungal lesions match elevated rainfall/canopy moisture, explain that environmental humidity triggered it.\n"
-            "4. STRICTLY RECOMMEND BIOLOGICAL & REGENERATIVE REMEDIES:\n"
-            "   - Recommend non-chemical solutions (Neem Seed Kernel Extract, Trichoderma harzianum, fermented sour buttermilk).\n"
-            "   - DO NOT recommend toxic synthetic chemical fungicides or pesticides.\n"
-            "5. SPOKEN VOICE SCRIPT:\n"
-            f"   - Write 'spoken_summary' entirely in the language of '{target_language}' (e.g. conversational Hindi, Telugu, Bengali).\n"
-            "   - Keep it reassuring, jargon-free, and natural for low-literacy voice playback."
+            "CRITICAL VALIDATION & DIAGNOSTIC GUIDELINES:\n"
+            "1. IMAGE RELEVANCE CHECK (STRICT):\n"
+            "   - First inspect if the image clearly contains a crop, plant, leaf, stem, or agricultural specimen.\n"
+            "   - If the image contains a human, animal, vehicle, random object, blank wall, screenshot, or completely blurry/unrecognizable content:\n"
+            "     * Set `is_plant_detected` to false.\n"
+            "     * Set `crop_name` to null.\n"
+            "     * Set `detected_condition` to 'INVALID_IMAGE'.\n"
+            "     * Set `confidence_level` to 'LOW'.\n"
+            "     * Set `underlying_cause` to 'The uploaded image does not contain a recognizable plant or crop leaf.'\n"
+            "     * Set `visual_symptoms`, `eco_friendly_remedies`, and `preventive_cultural_practices` to empty lists [].\n"
+            "     * In `spoken_summary`, write a polite message in the language of '{target_language}' asking the farmer to upload a clear picture of their crop.\n"
+            "     * STOP HERE and return the response.\n\n"
+            "2. IF A PLANT/LEAF IS DETECTED:\n"
+            "   - Set `is_plant_detected` to true.\n"
+            "   - Identify the crop species and primary condition.\n"
+            "   - CROSS-REFERENCE WITH WEATHER & GEOSPATIAL CONTEXT:\n"
+            "     * If chlorosis matches low Soil Organic Carbon or alkaline pH, diagnose nutrient deficiency.\n"
+            "     * If fungal lesions match elevated humidity (>75%) or rainfall, state that environmental humidity triggered it.\n"
+            "   - Strictly recommend non-chemical, regenerative bio-remedies (Neem oil, Trichoderma harzianum, sour buttermilk/chaach, Jeevamrit).\n"
+            "   - Write `spoken_summary` in conversational '{target_language}' explaining the problem and immediate organic solution."
+        )
+
+        safety_settings = [
+            types.SafetySetting(
+                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            ),
+            types.SafetySetting(
+                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            ),
+        ]
+
+        contents = [
+            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+            prompt,
+        ]
+
+        config = types.GenerateContentConfig(
+            temperature=0.1,
+            response_mime_type="application/json",
+            response_schema=LeafDiagnosisResult,
+            safety_settings=safety_settings,
         )
 
         last_error = None
-        max_attempts_per_model = 2
-        retry_delay_seconds = 3
 
+        # Iterate through high-throughput candidate models
         for model_name in self.candidate_models:
-            for attempt in range(max_attempts_per_model):
-                try:
-                    response = self.client.models.generate_content(
-                        model=model_name,
-                        contents=[
-                            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                            prompt,
-                        ],
-                        config=types.GenerateContentConfig(
-                            temperature=0.2,
-                            response_mime_type="application/json",
-                            response_schema=LeafDiagnosisResult,
-                            tools=[],
-                        ),
-                    )
-                    return LeafDiagnosisResult(**json.loads(response.text.strip()))
+            try:
+                response = await async_generate_content_with_backoff(
+                    client=self.client,
+                    model=model_name,
+                    contents=contents,
+                    config=config,
+                    max_retries=2,
+                    base_delay=1.0,
+                )
 
-                except Exception as exc:
-                    last_error = exc
-                    err_msg = str(exc).lower()
+                clean_text = response.text.strip()
+                if clean_text.startswith("```"):
+                    clean_text = clean_text.split("```")[1]
+                    if clean_text.startswith("json"):
+                        clean_text = clean_text[4:].strip()
 
-                    is_transient = (
-                        "503" in err_msg
-                        or "429" in err_msg
-                        or "unavailable" in err_msg
-                        or "high demand" in err_msg
-                        or "resource_exhausted" in err_msg
-                        or "overloaded" in err_msg
-                    )
+                return LeafDiagnosisResult.model_validate_json(clean_text)
 
-                    if is_transient and attempt < max_attempts_per_model - 1:
-                        logger.warning(
-                            f"Model {model_name} is experiencing high demand (Attempt {attempt + 1}/{max_attempts_per_model}). "
-                            f"Retrying after {retry_delay_seconds} seconds..."
-                        )
-                        time.sleep(retry_delay_seconds)
-                        continue
-
-                    logger.warning(f"Candidate {model_name} failed: {exc}")
-                    break  # Proceed to the next fallback candidate model
+            except Exception as exc:
+                last_error = exc
+                logger.warning(f"Candidate model '{model_name}' failed: {exc}. Trying fallback...")
+                continue
 
         raise RuntimeError(f"All diagnostic candidate models failed. Last error: {last_error}")
 
 
-def preprocess_image(image_bytes: bytes, max_dim: int = 1024, quality: int = 85) -> bytes:
+def preprocess_image(image_bytes: bytes, max_dim: int = 768, quality: int = 80) -> bytes:
     """
-    Resizes the image to a maximum dimension of max_dim x max_dim 
-    and compresses it as JPEG to minimize API latency and token cost.
+    Optimizes the image to 768px using BILINEAR resampling (3x faster than LANCZOS)
+    and 80% JPEG quality. Fits precisely inside Gemini's single-tile token budget
+    to drastically cut network transit and visual token inference latency.
     """
     with Image.open(io.BytesIO(image_bytes)) as img:
-        # Automatically rotate based on EXIF metadata if present
         img = ImageOps.exif_transpose(img)
-
-        # Convert palette/transparency to RGB for JPEG compression
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
-
-        # Resize while maintaining aspect ratio
-        img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-
-        # Compress to JPEG
+        img.thumbnail((max_dim, max_dim), Image.Resampling.BILINEAR)
         output_buffer = io.BytesIO()
-        img.save(output_buffer, format="JPEG", quality=quality, optimize=True)
+        img.save(output_buffer, format="JPEG", quality=quality, optimize=False)
         return output_buffer.getvalue()
 
 
-# Instantiate engine for direct router import
 plant_diagnostics_engine = PlantDiagnosticsEngine()
