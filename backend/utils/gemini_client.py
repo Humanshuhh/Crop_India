@@ -1,3 +1,5 @@
+# backend/utils/gemini_client.py
+
 import asyncio
 import logging
 import random
@@ -38,12 +40,12 @@ async def async_generate_content_with_backoff(
     model: str,
     contents: Union[str, List[Any]],
     config: Optional[types.GenerateContentConfig] = None,
-    max_retries: int = 4,
-    base_delay: float = 2.0,
+    max_retries: int = 2,
+    base_delay: float = 1.0,
 ) -> types.GenerateContentResponse:
     """
     Executes a non-blocking Gemini generate_content call using the async client
-    with exponential backoff and jitter to handle 429 and 503 errors.
+    with exponential backoff and randomized jitter to handle 429 and 503 errors.
     """
     for attempt in range(max_retries):
         try:
@@ -55,29 +57,30 @@ async def async_generate_content_with_backoff(
             return response
 
         except RETRYABLE_EXCEPTIONS as exc:
-            # Check for rate-limiting or server overloads
             status_code = getattr(exc, "code", getattr(exc, "status_code", None))
-            error_message = str(exc)
+            error_message = str(exc).lower()
 
             is_transient = (
                 status_code in (429, 500, 503)
                 or "429" in error_message
-                or "RESOURCE_EXHAUSTED" in error_message
+                or "resource_exhausted" in error_message
                 or "503" in error_message
-                or "overloaded" in error_message.lower()
+                or "unavailable" in error_message
+                or "high demand" in error_message
+                or "overloaded" in error_message
             )
 
             if not is_transient or attempt == max_retries - 1:
                 logger.error(
-                    f"Gemini API call failed permanently on attempt {attempt + 1}/{max_retries}: {exc}"
+                    f"Gemini API call failed permanently on attempt {attempt + 1}/{max_retries} for model {model}: {exc}"
                 )
                 raise exc
 
-            # Full jitter formula: base_delay * 2^attempt + uniform(0.5, 1.5)
-            backoff_delay = (base_delay * (2 ** attempt)) + random.uniform(0.5, 1.5)
+            # Fast jitter formula: base_delay * (2^attempt) + random(0.2, 0.5)
+            backoff_delay = (base_delay * (2 ** attempt)) + random.uniform(0.2, 0.5)
             logger.warning(
-                f"Rate limit / capacity peak encountered (Attempt {attempt + 1}/{max_retries}). "
-                f"Retrying in {backoff_delay:.2f}s... Details: {exc}"
+                f"Rate limit / capacity peak for model '{model}' (Attempt {attempt + 1}/{max_retries}). "
+                f"Retrying in {backoff_delay:.2f}s..."
             )
             await asyncio.sleep(backoff_delay)
 
@@ -87,8 +90,8 @@ def generate_content_with_backoff(
     model: str,
     contents: Union[str, List[Any]],
     config: Optional[types.GenerateContentConfig] = None,
-    max_retries: int = 4,
-    base_delay: float = 2.0,
+    max_retries: int = 2,
+    base_delay: float = 1.0,
 ) -> types.GenerateContentResponse:
     """Synchronous fallback version with exponential backoff and jitter."""
     import time
@@ -102,14 +105,16 @@ def generate_content_with_backoff(
             )
         except RETRYABLE_EXCEPTIONS as exc:
             status_code = getattr(exc, "code", getattr(exc, "status_code", None))
-            error_message = str(exc)
+            error_message = str(exc).lower()
 
             is_transient = (
                 status_code in (429, 500, 503)
                 or "429" in error_message
-                or "RESOURCE_EXHAUSTED" in error_message
+                or "resource_exhausted" in error_message
                 or "503" in error_message
-                or "overloaded" in error_message.lower()
+                or "unavailable" in error_message
+                or "high demand" in error_message
+                or "overloaded" in error_message
             )
 
             if not is_transient or attempt == max_retries - 1:
@@ -118,7 +123,7 @@ def generate_content_with_backoff(
                 )
                 raise exc
 
-            backoff_delay = (base_delay * (2 ** attempt)) + random.uniform(0.5, 1.5)
+            backoff_delay = (base_delay * (2 ** attempt)) + random.uniform(0.2, 0.5)
             logger.warning(
                 f"[Sync] Throttled on attempt {attempt + 1}/{max_retries}. Retrying in {backoff_delay:.2f}s..."
             )
