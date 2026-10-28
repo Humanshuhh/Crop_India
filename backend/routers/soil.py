@@ -1,7 +1,7 @@
 # backend/routers/soil.py
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field
 
