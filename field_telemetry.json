@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "gee_project": "team-ceres-agro",
+    "target_coordinates": {
+      "latitude": 23.66,
+      "longitude": 86.44
+    },
+    "buffer_radius_meters": 30.0,
+    "target_kharif_season": 2024,
+    "land_classification_flag": "CULTIVABLE_AGRICULTURAL_LAND",
+    "is_cultivable": true
+  },
+  "optical_vegetation": {
+    "scl_cloud_masked": true,
+    "median_kharif_ndvi": 0.5087,
+    "median_kharif_ndwi": 0.1543,
+    "vegetation_vigor_status": "Vigorous"
+  },
+  "soil_profile": {
+    "source": "OpenLandMap (Digital Soil Grids)",
+    "soil_type": "Sandy Loam (Plateau Red / Lateritic)",
+    "soil_ph": 6.7,
+    "soil_organic_carbon_pct": 0.2,
+    "icar_carbon_rating": "Deficient (<0.50%)"
+  },
+  "climate_and_weather": {
+    "cumulative_kharif_rainfall_mm": 1050.0,
+    "live_current_temperature_celsius": 25.0,
+    "live_relative_humidity_pct": 89,
+    "forecast_7day_rainfall_mm": 32.2
+  }
+}

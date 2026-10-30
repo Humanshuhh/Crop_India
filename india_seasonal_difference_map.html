@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_f5259de20ebe9971d05b387c415165b0 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+<div style="
+    position: fixed; 
+    bottom: 15px; 
+    right: 15px; 
+    z-index: 9999; 
+    background-color: rgba(255, 255, 255, 0.94);
+    padding: 7px 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    line-height: 1.25;
+    max-width: 195px;
+">
+    <b style="font-size: 11px; color: #1b5e20;">Kisan Crop Monitor</b>
+    <span style="font-size: 8.5px; color: #666; display: block;">Sentinel-2 (2025)</span>
+    <hr style="margin: 4px 0; border: 0; border-top: 1px solid #ddd;">
+    
+    <b>Pre-Rain:</b> 0.30 | <b>Harvest:</b> 0.49<br>
+    <b>Crop Gain:</b> <span style="color: #2e7d32; font-weight: bold;">+19.1% Cover</span>
+    
+    <hr style="margin: 4px 0; border: 0; border-top: 1px solid #ddd;">
+    <b>Field Status:</b><br>
+    <div style="display: flex; align-items: center; margin-top: 3px;">
+        <span style="background: #006837; width: 9px; height: 9px; display: inline-block; margin-right: 5px; border-radius: 2px;"></span>
+        <span>Healthy Crop</span>
+    </div>
+    <div style="display: flex; align-items: center; margin-top: 2px;">
+        <span style="background: #66BD63; width: 9px; height: 9px; display: inline-block; margin-right: 5px; border-radius: 2px;"></span>
+        <span>Emerging Crop</span>
+    </div>
+    <div style="display: flex; align-items: center; margin-top: 2px;">
+        <span style="background: #FFFFBF; width: 9px; height: 9px; display: inline-block; margin-right: 5px; border: 1px solid #ccc; border-radius: 2px;"></span>
+        <span>Fallow / Bare Soil</span>
+    </div>
+    <div style="display: flex; align-items: center; margin-top: 2px;">
+        <span style="background: #A50026; width: 9px; height: 9px; display: inline-block; margin-right: 5px; border-radius: 2px;"></span>
+        <span>Crop Stress / Loss</span>
+    </div>
+</div>
+    
+            <div class="folium-map" id="map_f5259de20ebe9971d05b387c415165b0" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_f5259de20ebe9971d05b387c415165b0 = L.map(
+                "map_f5259de20ebe9971d05b387c415165b0",
+                {
+                    center: [22.5, 82.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 5,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+            L.control.scale().addTo(map_f5259de20ebe9971d05b387c415165b0);
+
+            
+
+        
+    
+            var tile_layer_394c438a7c174c3dfa5f6a045373e47d = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_394c438a7c174c3dfa5f6a045373e47d.addTo(map_f5259de20ebe9971d05b387c415165b0);
+        
+    
+            var tile_layer_318c9493e8195280d8dc9a89d864949c = L.tileLayer(
+                "https://earthengine.googleapis.com/v1/projects/team-ceres-agro/maps/e99d5b3b26b4f3583dbbe6f2456c8bf0-f5c0c45b7118c758e75ad7f7921349fd/tiles/{z}/{x}/{y}",
+                {
+  "minZoom": 0,
+  "maxZoom": 18,
+  "maxNativeZoom": 18,
+  "noWrap": false,
+  "attribution": "Google Earth Engine | Sentinel-2",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            var tile_layer_d486c30b0148335ec910de1a031d7a00 = L.tileLayer(
+                "https://earthengine.googleapis.com/v1/projects/team-ceres-agro/maps/a1e07e27e7a4bbe8ea00c21ee639c2f0-dc5d320c9700b0ed48ee37c60b6c393e/tiles/{z}/{x}/{y}",
+                {
+  "minZoom": 0,
+  "maxZoom": 18,
+  "maxNativeZoom": 18,
+  "noWrap": false,
+  "attribution": "Google Earth Engine | Sentinel-2",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            var tile_layer_07ff254cddd1ff39d26f677d2d9d14f9 = L.tileLayer(
+                "https://earthengine.googleapis.com/v1/projects/team-ceres-agro/maps/ff3cb9ae6b0b7b187dc4b8bf8da22767-89ead354cda4354c3c4aa60a246491e3/tiles/{z}/{x}/{y}",
+                {
+  "minZoom": 0,
+  "maxZoom": 18,
+  "maxNativeZoom": 18,
+  "noWrap": false,
+  "attribution": "Google Earth Engine | Sentinel-2",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_07ff254cddd1ff39d26f677d2d9d14f9.addTo(map_f5259de20ebe9971d05b387c415165b0);
+        
+    
+            var feature_group_e9b8f289595070b16fb80e11c8faba00 = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var marker_d55054afb7c3067f6e50f542a6e51746 = L.marker(
+                [30.3753, 75.8573],
+                {
+}
+            ).addTo(feature_group_e9b8f289595070b16fb80e11c8faba00);
+        
+    
+            var icon_a0b3bf6a00d2334ca5b9a45422dfc7fa = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "green",
+  "iconColor": "white",
+  "icon": "leaf",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_8afcc2f318842eb04f0be3601b7f8c58 = L.popup({
+  "maxWidth": 250,
+});
+
+        
+            
+                var html_d5d83a06de5020e2727f1acb618f4cba = $(`<div id="html_d5d83a06de5020e2727f1acb618f4cba" style="width: 100.0%; height: 100.0%;"><b>Punjab Plains (Intensive Irrigated Belt)</b><br>         <i>Observation:</i> Extreme Kharif crop surge.<br>         Fields transition from bare harvested wheat soil in May to dense paddy canopy in October.</div>`)[0];
+                popup_8afcc2f318842eb04f0be3601b7f8c58.setContent(html_d5d83a06de5020e2727f1acb618f4cba);
+            
+        
+
+        marker_d55054afb7c3067f6e50f542a6e51746.bindPopup(popup_8afcc2f318842eb04f0be3601b7f8c58)
+        ;
+
+        
+    
+    
+            marker_d55054afb7c3067f6e50f542a6e51746.bindTooltip(
+                `<div>
+                     Click to inspect: Punjab Breadbasket
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_d55054afb7c3067f6e50f542a6e51746.setIcon(icon_a0b3bf6a00d2334ca5b9a45422dfc7fa);
+            
+    
+            var marker_5a4aec702bc273f9c0e2a50027f1643b = L.marker(
+                [20.7453, 78.6022],
+                {
+}
+            ).addTo(feature_group_e9b8f289595070b16fb80e11c8faba00);
+        
+    
+            var icon_3b7cb297678063fe3836cf779ec528e7 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "orange",
+  "iconColor": "white",
+  "icon": "tint",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_63566f680c5a3d35e9fefe3f46a9fe33 = L.popup({
+  "maxWidth": 250,
+});
+
+        
+            
+                var html_c37db3701c1ccf63adc7b5b7dd49edff = $(`<div id="html_c37db3701c1ccf63adc7b5b7dd49edff" style="width: 100.0%; height: 100.0%;"><b>Deccan Rainfed Zone (Vidarbha)</b><br>         <i>Observation:</i> Rainfed monsoon response.<br>         High contrast between parched summer soil and rainfed soybean/cotton crop emergence.</div>`)[0];
+                popup_63566f680c5a3d35e9fefe3f46a9fe33.setContent(html_c37db3701c1ccf63adc7b5b7dd49edff);
+            
+        
+
+        marker_5a4aec702bc273f9c0e2a50027f1643b.bindPopup(popup_63566f680c5a3d35e9fefe3f46a9fe33)
+        ;
+
+        
+    
+    
+            marker_5a4aec702bc273f9c0e2a50027f1643b.bindTooltip(
+                `<div>
+                     Click to inspect: Deccan Rainfed Zone
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_5a4aec702bc273f9c0e2a50027f1643b.setIcon(icon_3b7cb297678063fe3836cf779ec528e7);
+            
+    
+            var marker_39e02b3fe3c88e5ad9b234a9e08ced58 = L.marker(
+                [10.7867, 79.1378],
+                {
+}
+            ).addTo(feature_group_e9b8f289595070b16fb80e11c8faba00);
+        
+    
+            var icon_59a0ac202b797997cec76fb07db22d61 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_50dee5432defb1bcef959923a92ae6d3 = L.popup({
+  "maxWidth": 250,
+});
+
+        
+            
+                var html_ab1dee3dca6f676b46fceb12cd5932e9 = $(`<div id="html_ab1dee3dca6f676b46fceb12cd5932e9" style="width: 100.0%; height: 100.0%;"><b>Kaveri Delta (Peninsular Coastal Rice Belt)</b><br>         <i>Observation:</i> Cloud-masked Kuruvai/Samba crop cycles.<br>         Validates gap-free composite recovery despite retreating monsoon rains.</div>`)[0];
+                popup_50dee5432defb1bcef959923a92ae6d3.setContent(html_ab1dee3dca6f676b46fceb12cd5932e9);
+            
+        
+
+        marker_39e02b3fe3c88e5ad9b234a9e08ced58.bindPopup(popup_50dee5432defb1bcef959923a92ae6d3)
+        ;
+
+        
+    
+    
+            marker_39e02b3fe3c88e5ad9b234a9e08ced58.bindTooltip(
+                `<div>
+                     Click to inspect: Kaveri Delta
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_39e02b3fe3c88e5ad9b234a9e08ced58.setIcon(icon_59a0ac202b797997cec76fb07db22d61);
+            
+    
+            feature_group_e9b8f289595070b16fb80e11c8faba00.addTo(map_f5259de20ebe9971d05b387c415165b0);
+        
+    
+            var layer_control_e77bb0f48bd0a6fe1e9bcda4ff7ef7c5_layers = {
+                base_layers : {
+                    "openstreetmap" : tile_layer_394c438a7c174c3dfa5f6a045373e47d,
+                },
+                overlays :  {
+                    "Pre-Monsoon NDVI (May 2025)" : tile_layer_318c9493e8195280d8dc9a89d864949c,
+                    "Post-Monsoon NDVI (Oct 2025)" : tile_layer_d486c30b0148335ec910de1a031d7a00,
+                    "Seasonal NDVI Shift (Oct - May 2025)" : tile_layer_07ff254cddd1ff39d26f677d2d9d14f9,
+                    "Field Spotlights (Key Agronomic Belts)" : feature_group_e9b8f289595070b16fb80e11c8faba00,
+                },
+            };
+            let layer_control_e77bb0f48bd0a6fe1e9bcda4ff7ef7c5 = L.control.layers(
+                layer_control_e77bb0f48bd0a6fe1e9bcda4ff7ef7c5_layers.base_layers,
+                layer_control_e77bb0f48bd0a6fe1e9bcda4ff7ef7c5_layers.overlays,
+                {
+  "position": "topright",
+  "collapsed": false,
+  "autoZIndex": true,
+}
+            ).addTo(map_f5259de20ebe9971d05b387c415165b0);
+
+        
+</script>
+</html>
